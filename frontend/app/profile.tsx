@@ -2,7 +2,7 @@
 import { router } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
 
-
+` `
 import * as ImagePicker from "expo-image-picker";
 import { Picker } from "@react-native-picker/picker";
 
