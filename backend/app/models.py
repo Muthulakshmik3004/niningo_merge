@@ -29,3 +29,6 @@ class OfficeGeofence(mongoengine.Document):
     meta = {
         'collection': 'office_geofences'
     }
+from django.db import models
+
+# Create your models here.
