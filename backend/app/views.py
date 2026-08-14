@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from datetime import datetime
 
-from .models import UserLocation, OfficeGeofence
+from .models import OfficeGeofence, Profile
 
 
 def haversine_distance(lat1, lon1, lat2, lon2):
@@ -23,48 +23,52 @@ def haversine_distance(lat1, lon1, lat2, lon2):
 @api_view(['POST'])
 def save_locations(request):
     """
-    Save or update home/office coordinates for a user.
-    Body: { user_id, home_address, home_latitude, home_longitude,
+    Save or update home/office location fields on the user's Profile document
+    so that both profile + location data live in the same 'profiles' collection.
+    Body: { username, home_address, home_latitude, home_longitude,
             office_address, office_latitude, office_longitude }
     """
     data = request.data
-    user_id = data.get("user_id")
+    username = data.get("username")
 
-    if not user_id:
-        return Response({"error": "user_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+    if not username:
+        return Response({"error": "username is required"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        user_loc = UserLocation.objects(user_id=user_id).first()
-        if not user_loc:
-            user_loc = UserLocation(user_id=user_id)
+        profile = Profile.objects(username=username).first()
+        if not profile:
+            return Response(
+                {"error": f"No profile found for username '{username}'"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         if "home_address" in data:
-            user_loc.home_address = data["home_address"]
+            profile.home_address = data["home_address"]
         if "home_latitude" in data:
-            user_loc.home_latitude = float(data["home_latitude"]) if data["home_latitude"] is not None else None
+            profile.home_latitude = float(data["home_latitude"]) if data["home_latitude"] is not None else None
         if "home_longitude" in data:
-            user_loc.home_longitude = float(data["home_longitude"]) if data["home_longitude"] is not None else None
+            profile.home_longitude = float(data["home_longitude"]) if data["home_longitude"] is not None else None
 
         if "office_address" in data:
-            user_loc.office_address = data["office_address"]
+            profile.office_address = data["office_address"]
         if "office_latitude" in data:
-            user_loc.office_latitude = float(data["office_latitude"]) if data["office_latitude"] is not None else None
+            profile.office_latitude = float(data["office_latitude"]) if data["office_latitude"] is not None else None
         if "office_longitude" in data:
-            user_loc.office_longitude = float(data["office_longitude"]) if data["office_longitude"] is not None else None
+            profile.office_longitude = float(data["office_longitude"]) if data["office_longitude"] is not None else None
 
-        user_loc.updated_at = datetime.utcnow()
-        user_loc.save()
+        profile.location_updated_at = datetime.utcnow()
+        profile.save()
 
         return Response({
-            "message": "Locations saved successfully",
-            "user_location": {
-                "user_id": user_loc.user_id,
-                "home_address": user_loc.home_address,
-                "home_latitude": user_loc.home_latitude,
-                "home_longitude": user_loc.home_longitude,
-                "office_address": user_loc.office_address,
-                "office_latitude": user_loc.office_latitude,
-                "office_longitude": user_loc.office_longitude,
+            "message": "Locations saved to profile successfully",
+            "profile": {
+                "username": profile.username,
+                "home_address": profile.home_address,
+                "home_latitude": profile.home_latitude,
+                "home_longitude": profile.home_longitude,
+                "office_address": profile.office_address,
+                "office_latitude": profile.office_latitude,
+                "office_longitude": profile.office_longitude,
             }
         }, status=status.HTTP_200_OK)
 
