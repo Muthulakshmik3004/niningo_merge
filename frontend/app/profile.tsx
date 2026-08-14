@@ -2,7 +2,7 @@
 import { router } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
 
-
+` `
 import * as ImagePicker from "expo-image-picker";
 import { Picker } from "@react-native-picker/picker";
 
@@ -14,14 +14,21 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import BACKEND_URL from "../config";
 
 export default function ProfileScreen() {
     
-const [language, setLanguage] = useState("");
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [bio, setBio] = useState("");
+  const [language, setLanguage] = useState("");
   const [gender, setGender] = useState("");
   const [image, setImage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
   // Function to open the image gallery
   const pickImage = async () => {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -42,6 +49,48 @@ const [language, setLanguage] = useState("");
     setImage(result.assets[0].uri);
   }
 };
+
+  const handleContinue = async () => {
+    if (!name.trim()) {
+      alert("Name is required");
+      return;
+    }
+    if (!username.trim()) {
+      alert("Username is required");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/app/profile/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          username: username.trim().replace(/^@/, ""),
+          bio: bio.trim(),
+          language: language,
+          gender: gender,
+          profile_image: image,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        router.push("/location");
+      } else {
+        alert(data.error || "Failed to save profile");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Network error. Please make sure the backend is running.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   return (
@@ -101,6 +150,8 @@ const [language, setLanguage] = useState("");
 
           <TextInput
             placeholder="Name"
+            value={name}
+            onChangeText={setName}
             className="border-[1.5px] border-[#D348F7] rounded-[15px] px-[15px] h-[55px] bg-white"
           />
 
@@ -108,6 +159,9 @@ const [language, setLanguage] = useState("");
 
           <TextInput
             placeholder="@ username"
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
             className="border-[1.5px] border-[#D348F7] rounded-[15px] px-[15px] h-[55px] bg-white"
           />
 
@@ -117,6 +171,8 @@ const [language, setLanguage] = useState("");
             placeholder="Tell us about the magic in your life..."
             multiline
             numberOfLines={4}
+            value={bio}
+            onChangeText={setBio}
             className="border-[1.5px] border-[#D348F7] rounded-[15px] px-[15px] h-[90px] bg-white"
           />
 
@@ -168,16 +224,20 @@ const [language, setLanguage] = useState("");
           </View>
 
         </View>
-<TouchableOpacity onPress={() => router.push("/location")}>
+<TouchableOpacity onPress={handleContinue} disabled={loading}>
   <LinearGradient
     colors={["#F553E7","#6B63FF"]}
     style={{ height: 55, marginHorizontal: 90, borderRadius: 30, justifyContent: "center", alignItems: "center" }}
     start={{x:0,y:0}}
     end={{x:1,y:0}}
   >
-    <Text className="text-[24px] font-bold text-black">
-      Continue
-    </Text>
+    {loading ? (
+      <ActivityIndicator size="small" color="#000" />
+    ) : (
+      <Text className="text-[24px] font-bold text-black">
+        Continue
+      </Text>
+    )}
   </LinearGradient>
 </TouchableOpacity>
       </ScrollView>
