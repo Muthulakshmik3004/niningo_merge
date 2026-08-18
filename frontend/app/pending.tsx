@@ -189,7 +189,7 @@ export default function UnreadScreen() {
   <Ionicons name="gift-outline" size={28} color="#777" />
 </TouchableOpacity>
 
-<TouchableOpacity>
+<TouchableOpacity onPress={() => router.push("/profile-page")}>
   <Ionicons name="person-outline" size={28} color="#777" />
 </TouchableOpacity>
 

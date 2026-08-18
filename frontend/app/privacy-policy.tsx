@@ -6,7 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useTheme } from "../constants/ThemeContext";
 
-export default function PrivacyScreen() {
+export default function PrivacyPolicyScreen() {
   const { theme } = useTheme();
 
   // Entrance Animation
@@ -51,7 +51,7 @@ export default function PrivacyScreen() {
               className="text-[28px] font-bold"
               style={{ color: theme.primary }}
             >
-              Privacy Policy
+              Privacy & Policy
             </Text>
           </Animated.View>
 
