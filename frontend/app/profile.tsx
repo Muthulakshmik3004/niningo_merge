@@ -2,7 +2,7 @@
 import { router } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
 
-
+` `
 import * as ImagePicker from "expo-image-picker";
 import { Picker } from "@react-native-picker/picker";
 
@@ -14,34 +14,83 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import BACKEND_URL from "../config";
 
 export default function ProfileScreen() {
-    
-const [language, setLanguage] = useState("");
+
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [bio, setBio] = useState("");
+  const [language, setLanguage] = useState("");
   const [gender, setGender] = useState("");
   const [image, setImage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
   // Function to open the image gallery
   const pickImage = async () => {
-  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-  if (!permission.granted) {
-    alert("Gallery permission required");
-    return;
-  }
+    if (!permission.granted) {
+      alert("Gallery permission required");
+      return;
+    }
 
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ["images"],
-    allowsEditing: true,
-    aspect: [1, 1],
-    quality: 1,
-  });
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
 
-  if (!result.canceled) {
-    setImage(result.assets[0].uri);
-  }
-};
+    if (!result.canceled) {
+      setImage(result.assets[0].uri);
+    }
+  };
+
+  const handleContinue = async () => {
+    if (!name.trim()) {
+      alert("Name is required");
+      return;
+    }
+    if (!username.trim()) {
+      alert("Username is required");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/app/profile/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          username: username.trim().replace(/^@/, ""),
+          bio: bio.trim(),
+          language: language,
+          gender: gender,
+          profile_image: image,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        router.push({ pathname: "/location", params: { username: username.trim().replace(/^@/, "") } });
+      } else {
+        alert(data.error || "Failed to save profile");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Network error. Please make sure the backend is running.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   return (
@@ -60,39 +109,39 @@ const [language, setLanguage] = useState("");
         <Text className="text-center text-[18px] text-[#B548F4] mt-[5px]">
           Let's get to know you better 💖
         </Text>
-    
+
 
         <View className="self-center mt-[20px]">
 
-  <TouchableOpacity
-    className="absolute bottom-0 right-0 w-[35px] h-[35px] rounded-[18px] bg-[#D55AF6] justify-center items-center z-10"
-    onPress={pickImage}
-  >
-    <Text style={{ color: "#fff", fontSize: 16 }}>✏️</Text>
-  </TouchableOpacity>
+          <TouchableOpacity
+            className="absolute bottom-0 right-0 w-[35px] h-[35px] rounded-[18px] bg-[#D55AF6] justify-center items-center z-10"
+            onPress={pickImage}
+          >
+            <Text style={{ color: "#fff", fontSize: 16 }}>✏️</Text>
+          </TouchableOpacity>
 
-<TouchableOpacity onPress={pickImage}>
-  {image ? (
-    <Image source={{ uri: image }} className="w-[120px] h-[120px] rounded-[60px] border-[3px] border-[#9D6AFF] self-center justify-center items-center mt-[20px] bg-white" />
-  ) : (
-    <View className="w-[120px] h-[120px] rounded-[60px] border-[3px] border-[#9D6AFF] self-center justify-center items-center mt-[20px] bg-white">
-      <FontAwesome name="camera" size={40} color="#666" />
-    </View>
-  )}
-</TouchableOpacity>
+          <TouchableOpacity onPress={pickImage}>
+            {image ? (
+              <Image source={{ uri: image }} className="w-[120px] h-[120px] rounded-[60px] border-[3px] border-[#9D6AFF] self-center justify-center items-center mt-[20px] bg-white" />
+            ) : (
+              <View className="w-[120px] h-[120px] rounded-[60px] border-[3px] border-[#9D6AFF] self-center justify-center items-center mt-[20px] bg-white">
+                <FontAwesome name="camera" size={40} color="#666" />
+              </View>
+            )}
+          </TouchableOpacity>
 
-<TouchableOpacity
-  className="absolute bottom-0 right-0 w-[35px] h-[35px] rounded-[18px] bg-[#D55AF6] justify-center items-center z-10"
-  onPress={pickImage}
->
-  <FontAwesome name="pencil" size={18} color="#fff" />
-</TouchableOpacity>
+          <TouchableOpacity
+            className="absolute bottom-0 right-0 w-[35px] h-[35px] rounded-[18px] bg-[#D55AF6] justify-center items-center z-10"
+            onPress={pickImage}
+          >
+            <FontAwesome name="pencil" size={18} color="#fff" />
+          </TouchableOpacity>
 
 
 
-</View>
+        </View>
 
-        <View 
+        <View
           className="m-[20px] p-[20px] bg-[#FFEFFC] rounded-[30px]"
           style={{ elevation: 8 }}
         >
@@ -101,6 +150,8 @@ const [language, setLanguage] = useState("");
 
           <TextInput
             placeholder="Name"
+            value={name}
+            onChangeText={setName}
             className="border-[1.5px] border-[#D348F7] rounded-[15px] px-[15px] h-[55px] bg-white"
           />
 
@@ -108,6 +159,9 @@ const [language, setLanguage] = useState("");
 
           <TextInput
             placeholder="@ username"
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
             className="border-[1.5px] border-[#D348F7] rounded-[15px] px-[15px] h-[55px] bg-white"
           />
 
@@ -117,25 +171,27 @@ const [language, setLanguage] = useState("");
             placeholder="Tell us about the magic in your life..."
             multiline
             numberOfLines={4}
+            value={bio}
+            onChangeText={setBio}
             className="border-[1.5px] border-[#D348F7] rounded-[15px] px-[15px] h-[90px] bg-white"
           />
 
           <Text className="font-bold text-[18px] mb-[6px] mt-[10px]">Language</Text>
 
-         <View className="border-[1.5px] border-[#D348F7] rounded-[15px] bg-white mt-[5px]">
-  <Picker
-    selectedValue={language}
-    onValueChange={(itemValue) => setLanguage(itemValue)}
-  >
-    <Picker.Item label="Choose Language" value="" />
-    <Picker.Item label="Tamil" value="Tamil" />
-    <Picker.Item label="English" value="English" />
-    <Picker.Item label="Hindi" value="Hindi" />
-    <Picker.Item label="Malayalam" value="Malayalam" />
-    <Picker.Item label="Telugu" value="Telugu" />
-    <Picker.Item label="Kannada" value="Kannada" />
-  </Picker>
-</View>
+          <View className="border-[1.5px] border-[#D348F7] rounded-[15px] bg-white mt-[5px]">
+            <Picker
+              selectedValue={language}
+              onValueChange={(itemValue) => setLanguage(itemValue)}
+            >
+              <Picker.Item label="Choose Language" value="" />
+              <Picker.Item label="Tamil" value="Tamil" />
+              <Picker.Item label="English" value="English" />
+              <Picker.Item label="Hindi" value="Hindi" />
+              <Picker.Item label="Malayalam" value="Malayalam" />
+              <Picker.Item label="Telugu" value="Telugu" />
+              <Picker.Item label="Kannada" value="Kannada" />
+            </Picker>
+          </View>
 
           <Text className="font-bold text-[18px] mb-[6px] mt-[10px]">Gender</Text>
 
@@ -143,43 +199,47 @@ const [language, setLanguage] = useState("");
 
             <TouchableOpacity
               className="flex-row items-center"
-              onPress={()=>setGender("Male")}
+              onPress={() => setGender("Male")}
             >
-              <View className={`w-[20px] h-[20px] rounded-[10px] border-[2px] border-[#999] mr-[5px] ${gender == "Male" ? "bg-[#D348F7]" : ""}`}/>
+              <View className={`w-[20px] h-[20px] rounded-[10px] border-[2px] border-[#999] mr-[5px] ${gender == "Male" ? "bg-[#D348F7]" : ""}`} />
               <Text>Male</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               className="flex-row items-center"
-              onPress={()=>setGender("Female")}
+              onPress={() => setGender("Female")}
             >
-              <View className={`w-[20px] h-[20px] rounded-[10px] border-[2px] border-[#999] mr-[5px] ${gender == "Female" ? "bg-[#D348F7]" : ""}`}/>
+              <View className={`w-[20px] h-[20px] rounded-[10px] border-[2px] border-[#999] mr-[5px] ${gender == "Female" ? "bg-[#D348F7]" : ""}`} />
               <Text>Female</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               className="flex-row items-center"
-              onPress={()=>setGender("Other")}
+              onPress={() => setGender("Other")}
             >
-              <View className={`w-[20px] h-[20px] rounded-[10px] border-[2px] border-[#999] mr-[5px] ${gender == "Other" ? "bg-[#D348F7]" : ""}`}/>
+              <View className={`w-[20px] h-[20px] rounded-[10px] border-[2px] border-[#999] mr-[5px] ${gender == "Other" ? "bg-[#D348F7]" : ""}`} />
               <Text>Other</Text>
             </TouchableOpacity>
 
           </View>
 
         </View>
-<TouchableOpacity onPress={() => router.push("/location")}>
-  <LinearGradient
-    colors={["#F553E7","#6B63FF"]}
-    style={{ height: 55, marginHorizontal: 90, borderRadius: 30, justifyContent: "center", alignItems: "center" }}
-    start={{x:0,y:0}}
-    end={{x:1,y:0}}
-  >
-    <Text className="text-[24px] font-bold text-black">
-      Continue
-    </Text>
-  </LinearGradient>
-</TouchableOpacity>
+        <TouchableOpacity onPress={handleContinue} disabled={loading}>
+          <LinearGradient
+            colors={["#F553E7", "#6B63FF"]}
+            style={{ height: 55, marginHorizontal: 90, borderRadius: 30, justifyContent: "center", alignItems: "center" }}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#000" />
+            ) : (
+              <Text className="text-[24px] font-bold text-black">
+                Continue
+              </Text>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
       </ScrollView>
 
     </LinearGradient>

@@ -12,7 +12,7 @@
 // For web (localhost only):
 //   'http://localhost:8000'
 // 
-const BACKEND_URL = 'http://192.168.29.73:8000';
+const BACKEND_URL = 'http://192.168.29.226:8000';
 
 // const BACKEND_URL = 'http://43.204.221.95:8000';
 // const BACKEND_URL = 'http://10.161.93.125:8000';
