@@ -68,7 +68,7 @@ function ConfettiPiece({
     useRef(
       new Animated.Value(
         0.6 +
-        Math.random() * 0.8
+          Math.random() * 0.8
       )
     ).current;
 
@@ -85,9 +85,9 @@ function ConfettiPiece({
 
     translateY.setValue(
       -50 -
-      Math.random() *
-      height *
-      0.8
+        Math.random() *
+          height *
+          0.8
     );
 
 
@@ -136,7 +136,7 @@ function ConfettiPiece({
             duration:
               700 +
               Math.random() *
-              1000,
+                1000,
 
             useNativeDriver: true,
           }
@@ -184,8 +184,8 @@ function ConfettiPiece({
 
           backgroundColor:
             colors[
-            index %
-            colors.length
+              index %
+                colors.length
             ],
 
           transform: [

@@ -515,54 +515,133 @@ export default function ScratchCardScreen() {
 // SCRATCH CARD ARTWORK
 // ============================================================
 
-// ============================================================
-// SCRATCH CARD ARTWORK
-// ============================================================
-
-const ScratchCardArtwork = React.memo(function ScratchCardArtwork({
+function ScratchCardArtwork({
     size,
 }: {
     size: number;
 }) {
-    const center = size / 2;
 
-    const squares = React.useMemo(() => {
-        const items: React.ReactNode[] = [];
+    const center =
+        size / 2;
 
-        const rings = [
-            { radius: size * 0.16, count: 10, squareSize: 4 },
-            { radius: size * 0.28, count: 14, squareSize: 4 },
-            { radius: size * 0.42, count: 18, squareSize: 5 },
-        ];
 
-        rings.forEach((ring, ringIndex) => {
-            for (let i = 0; i < ring.count; i++) {
-                const angle = (i / ring.count) * Math.PI * 2 + ringIndex * 0.2;
-                const x = center + Math.cos(angle) * ring.radius;
-                const y = center + Math.sin(angle) * ring.radius;
+    // ----------------------------------------------------------
+    // Generate decorative squares
+    // ----------------------------------------------------------
 
-                items.push(
+    const squares: React.ReactNode[] =
+        [];
+
+
+    const rings = [
+
+        {
+            radius: size * 0.16,
+            count: 12,
+            squareSize: 4,
+        },
+
+        {
+            radius: size * 0.25,
+            count: 18,
+            squareSize: 4,
+        },
+
+        {
+            radius: size * 0.34,
+            count: 22,
+            squareSize: 5,
+        },
+
+        {
+            radius: size * 0.43,
+            count: 28,
+            squareSize: 5,
+        },
+
+        {
+            radius: size * 0.51,
+            count: 32,
+            squareSize: 6,
+        },
+
+    ];
+
+
+    rings.forEach(
+        (ring, ringIndex) => {
+
+            for (
+                let i = 0;
+                i < ring.count;
+                i++
+            ) {
+
+                const angle =
+                    (i / ring.count) *
+                    Math.PI *
+                    2 +
+                    ringIndex * 0.2;
+
+
+                const x =
+                    center +
+                    Math.cos(angle) *
+                    ring.radius;
+
+
+                const y =
+                    center +
+                    Math.sin(angle) *
+                    ring.radius;
+
+
+                squares.push(
+
                     <View
-                        key={`ring-${ringIndex}-${i}`}
+                        key={`${ringIndex}-${i}`}
                         style={{
                             position: "absolute",
-                            width: ring.squareSize,
-                            height: ring.squareSize,
-                            left: x - ring.squareSize / 2,
-                            top: y - ring.squareSize / 2,
-                            backgroundColor: "#C93773",
-                            opacity: 0.35 + ringIndex * 0.08,
-                            transform: [{ rotate: `${(i * 17) % 45}deg` }],
+
+                            width:
+                                ring.squareSize,
+
+                            height:
+                                ring.squareSize,
+
+                            left:
+                                x -
+                                ring.squareSize / 2,
+
+                            top:
+                                y -
+                                ring.squareSize / 2,
+
+                            backgroundColor:
+                                "#C93773",
+
+                            opacity:
+                                0.35 +
+                                ringIndex * 0.05,
+
+                            transform: [
+                                {
+                                    rotate: `${(
+                                        i * 17
+                                    ) % 45}deg`,
+                                },
+                            ],
                         }}
                     />
+
                 );
             }
-        });
+        }
+    );
 
-        return items;
-    }, [size, center]);
 
     return (
+
         <View
             style={[
                 styles.artwork,
@@ -572,7 +651,11 @@ const ScratchCardArtwork = React.memo(function ScratchCardArtwork({
                 },
             ]}
         >
-            {/* BACKGROUND */}
+
+            {/* ==================================================
+          BACKGROUND
+      ================================================== */}
+
             <View
                 style={[
                     styles.artworkBackground,
@@ -583,21 +666,34 @@ const ScratchCardArtwork = React.memo(function ScratchCardArtwork({
                 ]}
             />
 
-            {/* SOFT HALFTONE CIRCLE */}
+
+            {/* ==================================================
+          SOFT HALFTONE CIRCLE
+      ================================================== */}
+
             <View
                 style={[
                     styles.halftoneCircle,
                     {
                         width: size * 0.82,
                         height: size * 0.82,
-                        borderRadius: size * 0.41,
-                        left: size * 0.09,
-                        top: size * 0.09,
+                        borderRadius:
+                            size * 0.41,
+
+                        left:
+                            size * 0.09,
+
+                        top:
+                            size * 0.09,
                     },
                 ]}
             />
 
-            {/* SQUARE PATTERN */}
+
+            {/* ==================================================
+          SQUARE PATTERN
+      ================================================== */}
+
             <View
                 pointerEvents="none"
                 style={[
@@ -608,20 +704,27 @@ const ScratchCardArtwork = React.memo(function ScratchCardArtwork({
                     },
                 ]}
             >
+
                 {squares}
+
             </View>
 
-            {/* RANDOM SMALL SQUARES */}
+
+            {/* ==================================================
+          RANDOM SMALL SQUARES
+      ================================================== */}
+
             <View
                 pointerEvents="none"
                 style={[
                     styles.randomSquare,
                     {
-                        left: size * 0.1,
+                        left: size * 0.10,
                         top: size * 0.15,
                     },
                 ]}
             />
+
             <View
                 pointerEvents="none"
                 style={[
@@ -632,6 +735,7 @@ const ScratchCardArtwork = React.memo(function ScratchCardArtwork({
                     },
                 ]}
             />
+
             <View
                 pointerEvents="none"
                 style={[
@@ -642,6 +746,7 @@ const ScratchCardArtwork = React.memo(function ScratchCardArtwork({
                     },
                 ]}
             />
+
             <View
                 pointerEvents="none"
                 style={[
@@ -653,23 +758,35 @@ const ScratchCardArtwork = React.memo(function ScratchCardArtwork({
                 ]}
             />
 
-            {/* GIFT */}
+
+            {/* ==================================================
+          GIFT
+      ================================================== */}
+
             <View
                 style={[
                     styles.artworkGift,
                     {
-                        width: size * 0.5,
-                        height: size * 0.5,
+                        width: size * 0.50,
+                        height: size * 0.50,
+
                         left: size * 0.25,
                         top: size * 0.25,
                     },
                 ]}
             >
-                <Ionicons name="gift" size={size * 0.4} color="#D32B70" />
+
+                <Ionicons
+                    name="gift"
+                    size={size * 0.40}
+                    color="#D32B70"
+                />
+
             </View>
+
         </View>
     );
-});
+}
 
 
 // ============================================================

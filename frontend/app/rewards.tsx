@@ -10,7 +10,7 @@ import {
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons, Zocial } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
 
@@ -390,25 +390,65 @@ export default function RewardsScreen() {
 
 
         {/* ==================================================
-            STATIC TASK BOTTOM NAVIGATION FOOTER
+            BOTTOM NAVIGATION
         ================================================== */}
 
-        <View className="absolute left-0 right-0 bottom-0 h-[60px] flex-row justify-around items-center bg-white rounded-t-[25px]">
-          <TouchableOpacity onPress={() => router.push("/all")}>
-            <Ionicons name="document-text-outline" size={28} color="#777" />
+        <View style={styles.bottomNavigation}>
+
+          {/* Home / All */}
+          <TouchableOpacity
+            style={styles.navItem}
+            onPress={() => router.push("/all")}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="clipboard-outline"
+              size={29}
+              color="#777777"
+            />
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => router.push("/status")}>
-            <Zocial name="statusnet" size={28} color="#777" />
+
+          {/* Status */}
+          <TouchableOpacity
+            style={styles.navItem}
+            onPress={() => router.push("/status")}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="leaf-outline"
+              size={31}
+              color="#777777"
+            />
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => router.push("/rewards")}>
-            <Ionicons name="gift-outline" size={28} color="#B84CE8" />
+
+          {/* Rewards - Active */}
+          <TouchableOpacity
+            style={styles.navItem}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="gift"
+              size={32}
+              color="#111111"
+            />
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => router.push("/profile")}>
-            <Ionicons name="person-outline" size={28} color="#777" />
+
+          {/* Profile */}
+          <TouchableOpacity
+            style={styles.navItem}
+            onPress={() => router.push("/profile")}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="person-outline"
+              size={31}
+              color="#777777"
+            />
           </TouchableOpacity>
+
         </View>
 
       </View>
@@ -421,74 +461,187 @@ export default function RewardsScreen() {
 // SCRATCH CARD DESIGN
 // ============================================================
 
-const ScratchCardDesign = React.memo(function ScratchCardDesign({
+function ScratchCardDesign({
   size,
 }: {
   size: number;
 }) {
+
+  /*
+   * Center of the card.
+   *
+   * Example:
+   * 170px card → center = 85px
+   */
   const center = size / 2;
 
-  const squares = React.useMemo(() => {
-    const items: React.ReactNode[] = [];
+  /*
+   * These rings create the many small squares
+   * around the gift.
+   */
+  const rings = [
+    {
+      radius: size * 0.12,
+      count: 12,
+      squareSize: 3,
+    },
+    {
+      radius: size * 0.19,
+      count: 16,
+      squareSize: 3,
+    },
+    {
+      radius: size * 0.27,
+      count: 20,
+      squareSize: 4,
+    },
+    {
+      radius: size * 0.35,
+      count: 24,
+      squareSize: 4,
+    },
+    {
+      radius: size * 0.43,
+      count: 28,
+      squareSize: 5,
+    },
+    {
+      radius: size * 0.50,
+      count: 32,
+      squareSize: 5,
+    },
+    {
+      radius: size * 0.56,
+      count: 34,
+      squareSize: 6,
+    },
+  ];
 
-    const rings = [
-      { radius: size * 0.16, count: 10, squareSize: 3 },
-      { radius: size * 0.28, count: 14, squareSize: 4 },
-      { radius: size * 0.42, count: 18, squareSize: 5 },
-    ];
 
-    rings.forEach((ring, ringIndex) => {
-      for (let i = 0; i < ring.count; i++) {
-        const angle = (i / ring.count) * Math.PI * 2 + ringIndex * 0.2;
-        const x = center + Math.cos(angle) * ring.radius;
-        const y = center + Math.sin(angle) * ring.radius;
+  const squares: React.ReactNode[] = [];
 
-        items.push(
-          <View
-            key={`r-${ringIndex}-${i}`}
-            style={{
-              position: "absolute",
-              left: x - ring.squareSize / 2,
-              top: y - ring.squareSize / 2,
-              width: ring.squareSize,
-              height: ring.squareSize,
-              backgroundColor: "#D13C77",
-              opacity: 0.35 + ringIndex * 0.08,
-              transform: [{ rotate: `${(i * 17) % 45}deg` }],
-            }}
-          />
-        );
-      }
-    });
 
-    const extraSquares = [
-      [0.1, 0.2, 5],
-      [0.18, 0.36, 4],
-      [0.82, 0.25, 5],
-      [0.9, 0.46, 6],
-      [0.74, 0.84, 4],
-      [0.12, 0.75, 4],
-    ];
+  /*
+   * Generate all squares.
+   */
+  rings.forEach((ring, ringIndex) => {
 
-    extraSquares.forEach(([x, y, squareSize], index) => {
-      items.push(
+    for (let i = 0; i < ring.count; i++) {
+
+      const angle =
+        (i / ring.count) *
+        Math.PI *
+        2 +
+        ringIndex * 0.13;
+
+
+      const x =
+        center +
+        Math.cos(angle) *
+        ring.radius;
+
+
+      const y =
+        center +
+        Math.sin(angle) *
+        ring.radius;
+
+
+      squares.push(
         <View
-          key={`ex-${index}`}
+          key={`${ringIndex}-${i}`}
           style={{
             position: "absolute",
-            left: size * x - squareSize / 2,
-            top: size * y - squareSize / 2,
-            width: squareSize,
-            height: squareSize,
+
+            left:
+              x -
+              ring.squareSize / 2,
+
+            top:
+              y -
+              ring.squareSize / 2,
+
+            width: ring.squareSize,
+
+            height: ring.squareSize,
+
             backgroundColor: "#D13C77",
+
+            opacity:
+              0.35 +
+              ringIndex * 0.04,
+
+            transform: [
+              {
+                rotate: `${(i * 17) % 45
+                  }deg`,
+              },
+            ],
+          }}
+        />
+      );
+    }
+  });
+
+
+  /*
+   * Additional random-looking squares.
+   *
+   * These make the card look closer to
+   * the reference image instead of
+   * looking like perfect circles.
+   */
+  const extraSquares = [
+    [0.10, 0.20, 5],
+    [0.18, 0.36, 4],
+    [0.10, 0.62, 6],
+    [0.20, 0.80, 5],
+
+    [0.32, 0.12, 5],
+    [0.48, 0.08, 4],
+    [0.68, 0.12, 6],
+    [0.82, 0.25, 5],
+
+    [0.90, 0.46, 6],
+    [0.84, 0.65, 5],
+    [0.74, 0.84, 4],
+    [0.50, 0.90, 6],
+
+    [0.30, 0.87, 5],
+    [0.12, 0.75, 4],
+  ];
+
+
+  extraSquares.forEach(
+    ([x, y, squareSize], index) => {
+
+      squares.push(
+        <View
+          key={`extra-${index}`}
+          style={{
+            position: "absolute",
+
+            left:
+              size * x -
+              squareSize / 2,
+
+            top:
+              size * y -
+              squareSize / 2,
+
+            width: squareSize,
+
+            height: squareSize,
+
+            backgroundColor: "#D13C77",
+
             opacity: 0.55,
           }}
         />
       );
-    });
+    }
+  );
 
-    return items;
-  }, [size, center]);
 
   return (
     <View
@@ -500,7 +653,11 @@ const ScratchCardDesign = React.memo(function ScratchCardDesign({
         },
       ]}
     >
-      {/* CARD BACKGROUND */}
+
+      {/* ==================================================
+          CARD BACKGROUND
+      ================================================== */}
+
       <View
         style={[
           styles.cardBackground,
@@ -511,7 +668,11 @@ const ScratchCardDesign = React.memo(function ScratchCardDesign({
         ]}
       />
 
-      {/* SOFT CIRCULAR BACKGROUND */}
+
+      {/* ==================================================
+          SOFT CIRCULAR BACKGROUND
+      ================================================== */}
+
       <View
         style={[
           styles.softCircleOuter,
@@ -551,7 +712,11 @@ const ScratchCardDesign = React.memo(function ScratchCardDesign({
         ]}
       />
 
-      {/* SMALL SQUARES PATTERN */}
+
+      {/* ==================================================
+          MANY SMALL SQUARES
+      ================================================== */}
+
       <View
         style={[
           styles.squarePattern,
@@ -565,16 +730,21 @@ const ScratchCardDesign = React.memo(function ScratchCardDesign({
         {squares}
       </View>
 
-      {/* SMALL DOTS */}
+
+      {/* ==================================================
+          SMALL DOTS
+      ================================================== */}
+
       <View
         style={[
           styles.smallDot,
           {
-            left: size * 0.1,
+            left: size * 0.10,
             top: size * 0.09,
           },
         ]}
       />
+
       <View
         style={[
           styles.smallDot,
@@ -584,6 +754,7 @@ const ScratchCardDesign = React.memo(function ScratchCardDesign({
           },
         ]}
       />
+
       <View
         style={[
           styles.smallDot,
@@ -593,6 +764,7 @@ const ScratchCardDesign = React.memo(function ScratchCardDesign({
           },
         ]}
       />
+
       <View
         style={[
           styles.smallDot,
@@ -602,15 +774,17 @@ const ScratchCardDesign = React.memo(function ScratchCardDesign({
           },
         ]}
       />
+
       <View
         style={[
           styles.smallDot,
           {
-            left: size * 0.2,
+            left: size * 0.20,
             top: size * 0.82,
           },
         ]}
       />
+
       <View
         style={[
           styles.smallDot,
@@ -621,23 +795,35 @@ const ScratchCardDesign = React.memo(function ScratchCardDesign({
         ]}
       />
 
-      {/* GIFT */}
+
+      {/* ==================================================
+          GIFT
+      ================================================== */}
+
       <View
         style={[
           styles.giftContainer,
           {
             width: size * 0.55,
             height: size * 0.55,
+
             left: size * 0.225,
             top: size * 0.225,
           },
         ]}
       >
-        <Ionicons name="gift" size={size * 0.43} color="#D42670" />
+
+        <Ionicons
+          name="gift"
+          size={size * 0.43}
+          color="#D42670"
+        />
+
       </View>
+
     </View>
   );
-});
+}
 
 
 // ============================================================
