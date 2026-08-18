@@ -247,9 +247,15 @@ alignItems:"flex-end" moves the content to the right side. */}
   />
 </TouchableOpacity>
 
-  <TouchableOpacity>
-    <Ionicons name="gift-outline" size={28} color="#777" />
-  </TouchableOpacity>
+  <TouchableOpacity
+  onPress={() => router.push("/rewards")}
+>
+  <Ionicons
+    name="gift-outline"
+    size={28}
+    color="#777"
+  />
+</TouchableOpacity>
 
   <TouchableOpacity>
     <Ionicons name="person-outline" size={28} color="#777" />
@@ -258,4 +264,4 @@ alignItems:"flex-end" moves the content to the right side. */}
           </LinearGradient>
           </SafeAreaView>
   );
-}
+}

@@ -163,9 +163,14 @@ onPress={() => {
   <Zocial name="statusnet" size={28} color="#777" />
 </TouchableOpacity>
 
-<TouchableOpacity>
-   {/* onPress={() => router.push("/pending")}> */}
-  <Ionicons name="gift-outline" size={28} color="#777" />
+<TouchableOpacity
+  onPress={() => router.push("/rewards")}
+>
+  <Ionicons
+    name="gift-outline"
+    size={28}
+    color="#777"
+  />
 </TouchableOpacity>
 
 <TouchableOpacity>

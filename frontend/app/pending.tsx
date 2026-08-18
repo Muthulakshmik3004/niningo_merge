@@ -185,8 +185,14 @@ export default function UnreadScreen() {
   <Zocial name="statusnet" size={28} color="#777" />
 </TouchableOpacity>
 
-<TouchableOpacity>
-  <Ionicons name="gift-outline" size={28} color="#777" />
+<TouchableOpacity
+  onPress={() => router.push("/rewards")}
+>
+  <Ionicons
+    name="gift-outline"
+    size={28}
+    color="#777"
+  />
 </TouchableOpacity>
 
 <TouchableOpacity>

@@ -177,13 +177,15 @@ export default function UnreadScreen() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity>
-            <Ionicons
-              name="gift-outline"
-              size={28}
-              color="#777"
-            />
-          </TouchableOpacity>
+          <TouchableOpacity
+  onPress={() => router.push("/rewards")}
+>
+  <Ionicons
+    name="gift-outline"
+    size={28}
+    color="#777"
+  />
+</TouchableOpacity>
 
           <TouchableOpacity>
             <Ionicons
