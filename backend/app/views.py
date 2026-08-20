@@ -1,4 +1,5 @@
 import math
+import re
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
@@ -25,20 +26,26 @@ def save_locations(request):
     """
     Save or update home/office location fields on the user's Profile document
     so that both profile + location data live in the same 'profiles' collection.
-    Body: { username, home_address, home_latitude, home_longitude,
+    Body: { username, phone_number, home_address, home_latitude, home_longitude,
             office_address, office_latitude, office_longitude }
     """
     data = request.data
     username = data.get("username")
+    phone_number = data.get("phone_number")
 
-    if not username:
-        return Response({"error": "username is required"}, status=status.HTTP_400_BAD_REQUEST)
+    if not username and not phone_number:
+        return Response({"error": "username or phone_number is required"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        profile = Profile.objects(username=username).first()
+        profile = None
+        if username:
+            profile = Profile.objects(username=username).first()
+        if not profile and phone_number:
+            profile = Profile.objects(phone_number=phone_number).first()
+
         if not profile:
             return Response(
-                {"error": f"No profile found for username '{username}'"},
+                {"error": f"No profile found for target user"},
                 status=status.HTTP_404_NOT_FOUND
             )
 
@@ -57,12 +64,14 @@ def save_locations(request):
             profile.office_longitude = float(data["office_longitude"]) if data["office_longitude"] is not None else None
 
         profile.location_updated_at = datetime.utcnow()
+        profile.location_completed = True
         profile.save()
 
         return Response({
             "message": "Locations saved to profile successfully",
             "profile": {
                 "username": profile.username,
+                "phone_number": profile.phone_number,
                 "home_address": profile.home_address,
                 "home_latitude": profile.home_latitude,
                 "home_longitude": profile.home_longitude,
@@ -168,23 +177,27 @@ def verify_geofence(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
 
-from .models import Profile
+
+from rest_framework.views import APIView
 
 
 class ProfileView(APIView):
 
     def post(self, request):
-
+        phone_number = request.data.get("phone_number")
         name = request.data.get("name")
         username = request.data.get("username")
         bio = request.data.get("bio", "")
         language = request.data.get("language", "")
         gender = request.data.get("gender", "")
         profile_image = request.data.get("profile_image", "")
+
+        if not phone_number:
+            return Response(
+                {"error": "Phone number is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         if not name:
             return Response(
@@ -198,41 +211,153 @@ class ProfileView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Check duplicate username
-        existing_profile = Profile.objects(
-            username=username
-        ).first()
+        profile = Profile.objects(phone_number=phone_number).first()
 
-        if existing_profile:
-            return Response(
-                {"error": "Username already exists"},
-                status=status.HTTP_409_CONFLICT
+        if not profile:
+            profile = Profile(
+                phone_number=phone_number,
+                name=name,
+                username=username
             )
+        else:
+            # Check username only if another user has it
+            existing_username = Profile.objects(username=username).first()
 
-        profile = Profile(
-            name=name,
-            username=username,
-            bio=bio,
-            language=language,
-            gender=gender,
-            profile_image=profile_image or None
-        )
+            if (
+                existing_username
+                and str(existing_username.id) != str(profile.id)
+            ):
+                return Response(
+                    {"error": "Username already exists"},
+                    status=status.HTTP_409_CONFLICT
+                )
+
+        profile.name = name
+        profile.username = username
+        profile.bio = bio
+        profile.language = language
+        profile.gender = gender
+        profile.profile_image = profile_image or None
+
+        profile.profile_completed = True
 
         profile.save()
 
+        return Response({
+            "success": True,
+            "message": "Profile saved successfully",
+            "username": profile.username
+        })
+
+
+@api_view(["POST"])
+def mobile_login(request):
+
+    phone_number = request.data.get("phone_number")
+
+    if not phone_number:
         return Response(
-            {
-                "success": True,
-                "message": "Profile saved successfully",
-                "profile": {
-                    "id": str(profile.id),
-                    "name": profile.name,
-                    "username": profile.username,
-                    "bio": profile.bio,
-                    "language": profile.language,
-                    "gender": profile.gender,
-                    "profile_image": profile.profile_image
-                }
-            },
-            status=status.HTTP_201_CREATED
+            {"error": "Phone number is required"},
+            status=status.HTTP_400_BAD_REQUEST
         )
+
+    # Find existing user
+    profile = Profile.objects(
+        phone_number=phone_number
+    ).first()
+
+    # New user
+    if not profile:
+        col = Profile._get_collection()
+        col.insert_one({
+            "phone_number": phone_number,
+            "name": "",
+            "bio": "",
+            "language": "",
+            "gender": "",
+            "profile_completed": False,
+            "location_completed": False,
+        })
+        return Response({
+            "success": True,
+            "exists": False,
+            "next_screen": "profile"
+        }, status=status.HTTP_200_OK)
+
+    # Existing user but profile incomplete
+    if not profile.profile_completed:
+        return Response({
+            "success": True,
+            "exists": True,
+            "next_screen": "profile",
+            "username": profile.username or ""
+        })
+
+    # Profile done but location not done
+    if not profile.location_completed:
+        return Response({
+            "success": True,
+            "exists": True,
+            "next_screen": "location",
+            "username": profile.username or ""
+        })
+
+    # Everything complete
+    return Response({
+        "success": True,
+        "exists": True,
+        "next_screen": "tasks",
+        "username": profile.username
+    })
+
+
+@api_view(["POST"])
+def match_contacts(request):
+    """
+    Match device contacts with registered MongoDB user profiles.
+    Body: { "phone_numbers": ["+919876543210", "0091...", "9876543210", ...] }
+    """
+    phone_numbers = request.data.get("phone_numbers", [])
+
+    if not isinstance(phone_numbers, list):
+        return Response(
+            {"error": "phone_numbers must be a list"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # --- Normalize each phone number ---
+    normalized_numbers = []
+    for number in phone_numbers:
+        if not number:
+            continue
+        number = str(number).strip()
+        # Keep only digits and leading +
+        number = re.sub(r"[^\d+]", "", number)
+        # 10-digit Indian number → +91
+        if len(number) == 10 and number.isdigit():
+            number = "+91" + number
+        # 0091XXXXXXXXXX → +91XXXXXXXXXX
+        elif number.startswith("0091"):
+            number = "+" + number[2:]
+        normalized_numbers.append(number)
+
+    # Remove duplicates
+    normalized_numbers = list(set(normalized_numbers))
+
+    # --- Query MongoDB ---
+    profiles = Profile.objects(
+        phone_number__in=normalized_numbers
+    )
+
+    friends = []
+    for profile in profiles:
+        friends.append({
+            "name": profile.name or profile.username or "User",
+            "phone_number": profile.phone_number,
+            "username": profile.username or "",
+        })
+
+    return Response({
+        "success": True,
+        "friends": friends,
+    }, status=status.HTTP_200_OK)
