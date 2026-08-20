@@ -30,7 +30,7 @@ if (Platform.OS !== "web") {
 }
 
 export default function LocationScreen() {
-  const { username } = useLocalSearchParams<{ username: string }>();
+  const { username, phone } = useLocalSearchParams<{ username: string; phone?: string }>();
   const [home, setHome] = useState("");
   const [homeCoords, setHomeCoords] = useState<{ latitude: number; longitude: number } | null>(null);
 
@@ -142,6 +142,7 @@ export default function LocationScreen() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           username: username || "",
+          phone_number: phone || "",
           home_address: home,
           home_latitude: homeCoords?.latitude || null,
           home_longitude: homeCoords?.longitude || null,
@@ -154,7 +155,7 @@ export default function LocationScreen() {
       const data = await response.json();
       if (response.ok) {
         Alert.alert("Success", "Locations captured and saved successfully!", [
-          { text: "OK", onPress: () => router.push("/all") }
+          { text: "OK", onPress: () => router.replace("/all") }
         ]);
       } else {
         Alert.alert("Error Saving", data.error || "Failed to save locations backend side.");
@@ -166,7 +167,7 @@ export default function LocationScreen() {
         `Could not reach the backend server at: ${BACKEND_URL}\n\nEnsure the backend is running, and that your phone/emulator is on the same network.\n\nError details: ${err.message || err}`,
         [
           { text: "Fix Connection", style: "cancel" },
-          { text: "Continue anyway", onPress: () => router.push("/all") }
+          { text: "Continue anyway", onPress: () => router.replace("/all") }
         ]
       );
     } finally {
