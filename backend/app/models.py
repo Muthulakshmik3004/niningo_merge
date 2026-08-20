@@ -6,7 +6,6 @@ from mongoengine import (
 from datetime import datetime, timedelta
 
 
-
 class OfficeGeofence(mongoengine.Document):
     office_name = mongoengine.StringField(default="Main Office")
     latitude = mongoengine.FloatField(required=True)
@@ -18,19 +17,33 @@ class OfficeGeofence(mongoengine.Document):
     meta = {
         'collection': 'office_geofences'
     }
+
+
 class Profile(Document):
+    # ── Identity ──
+    phone_number = StringField(
+        required=True,
+        unique=True,
+        sparse=True,
+        max_length=20,
+    )
+
     # ── Core profile fields ──
     name = StringField(required=True, max_length=100)
     username = StringField(
-    required=True,
-    unique=True,
-    sparse=True,
-    max_length=50
-)
+        required=True,
+        unique=True,
+        sparse=True,
+        max_length=50
+    )
     bio = StringField(max_length=500, default="")
     language = StringField(max_length=50, default="")
     gender = StringField(max_length=20, default="")
     profile_image = StringField(required=False, null=True)
+
+    # ── Onboarding flags ──
+    profile_completed = BooleanField(default=False)
+    location_completed = BooleanField(default=False)
 
     # ── Location fields (same collection) ──
     home_address = mongoengine.StringField(default="")
@@ -42,8 +55,10 @@ class Profile(Document):
     location_updated_at = mongoengine.DateTimeField(null=True)
 
     meta = {
-        "collection": "profiles"
+        "collection": "profiles",
+        "indexes": ["phone_number", "username"],
     }
+
 
 # ── Contact / Task list (All, Unread, Pending tabs) ──
 class Contact(Document):

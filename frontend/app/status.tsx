@@ -23,956 +23,586 @@ import {
   StatusItem,
 } from "../services/api";
 
-
 export default function Status() {
-
   // =========================================================
-  // USER DATA
+  // USER
   // =========================================================
 
   const [username, setUsername] = useState<string | null>(null);
-  const [name, setName] = useState<string>("");
-  const [profileImage, setProfileImage] = useState<string>("");
-
+  const [name, setName] = useState("");
+  const [profileImage, setProfileImage] = useState("");
 
   // =========================================================
   // STATUS DATA
   // =========================================================
 
-  // All my statuses
   const [myStatuses, setMyStatuses] = useState<StatusItem[]>([]);
-
-  // All contact statuses
   const [feed, setFeed] = useState<StatusItem[]>([]);
 
-
   // =========================================================
-  // UI STATES
+  // UI
   // =========================================================
 
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState("");
 
-
   // =========================================================
-  // LOAD STATUS DATA
+  // LOAD DATA
   // =========================================================
 
   const loadData = useCallback(async () => {
-
-    setLoading(true);
-    setError("");
-
     try {
+      setLoading(true);
+      setError("");
 
       const session = await getSession();
 
-      if (!session.username) {
+      if (!session?.username) {
         setError("Please login first");
+        setMyStatuses([]);
+        setFeed([]);
         return;
       }
 
+      const currentUsername = session.username;
+      const currentName = session.name || currentUsername;
+      const currentProfileImage = session.profileImage || "";
 
-      // Save user information
-      setUsername(session.username);
-      setName(session.name || session.username);
-      setProfileImage(session.profileImage || "");
+      setUsername(currentUsername);
+      setName(currentName);
+      setProfileImage(currentProfileImage);
 
-
-      // Fetch my statuses + contact statuses
       const [mine, others] = await Promise.all([
-        fetchMyStatus(session.username),
-        fetchStatusFeed(session.username),
+        fetchMyStatus(currentUsername),
+        fetchStatusFeed(currentUsername),
       ]);
 
-
-      // =====================================================
-      // IMPORTANT:
-      // KEEP ALL MY STATUSES
-      // =====================================================
-
-      const myStatusList = [...(mine.results || [])].sort(
-  (a, b) =>
-    new Date(a.created_at).getTime() -
-    new Date(b.created_at).getTime()
-);
-
-setMyStatuses(myStatusList);
-
-
-      // =====================================================
-      // KEEP ALL CONTACT STATUSES
-      // =====================================================
-
-      const contactStatusList = [...(others.results || [])].sort(
-  (a, b) =>
-    new Date(a.created_at).getTime() -
-    new Date(b.created_at).getTime()
-);
-
-  setFeed(contactStatusList);
-
-    } catch (e: any) {
-
-      console.warn("STATUS LOAD ERROR:", e);
-
-      setError(
-        e?.message ||
-        "Could not load Moments from the server"
+      // Newest first
+      const myStatusList = [...(mine?.results || [])].sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() -
+          new Date(a.created_at).getTime()
       );
 
+      const contactStatusList = [...(others?.results || [])].sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() -
+          new Date(a.created_at).getTime()
+      );
+
+      setMyStatuses(myStatusList);
+      setFeed(contactStatusList);
+    } catch (e: any) {
+      console.log("STATUS LOAD ERROR:", e);
+
+      setError(
+        e?.message || "Could not load Moments from the server"
+      );
     } finally {
-
       setLoading(false);
-
     }
-
   }, []);
 
-
-  // Reload whenever this screen gets focus
+  // Reload when screen becomes active
   useFocusEffect(
     useCallback(() => {
       loadData();
     }, [loadData])
   );
 
-
   // =========================================================
-  // ADD NEW MOMENT
+  // ADD MOMENT
   // =========================================================
 
   const handleAddMoment = async () => {
-
     if (!username) {
-
-      Alert.alert(
-        "Login required",
-        "Please login first."
-      );
-
+      Alert.alert("Login required", "Please login first.");
       return;
     }
 
-
     try {
-
-      // Request gallery permission
       const permission =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-
       if (!permission.granted) {
-
         Alert.alert(
           "Permission required",
           "Gallery permission is required to add a Moment."
         );
-
         return;
       }
 
-
-      // Open gallery
       const result =
         await ImagePicker.launchImageLibraryAsync({
-
           mediaTypes: ["images"],
-
           allowsEditing: true,
-
+          aspect: [1, 1],
           quality: 1,
-
         });
 
-
-      // User cancelled
       if (result.canceled) {
         return;
       }
 
-
-      const selectedImage =
-        result.assets?.[0]?.uri;
-
+      const selectedImage = result.assets?.[0]?.uri;
 
       if (!selectedImage) {
+        Alert.alert("Error", "Could not select the image.");
         return;
       }
 
-
       setPosting(true);
 
-
-      // =====================================================
-      // CREATE NEW STATUS
-      // DOES NOT REPLACE OLD STATUS
-      // =====================================================
-
       await postStatus({
-
         username,
-
         name,
-
         profile_image: profileImage,
-
         content_image: selectedImage,
-
       });
 
-
-      // Reload all statuses
       await loadData();
-
-
     } catch (e: any) {
-
-      console.warn(
-        "ADD MOMENT ERROR:",
-        e
-      );
-
+      console.log("ADD MOMENT ERROR:", e);
 
       Alert.alert(
         "Error",
-        e?.message ||
-        "Could not post your Moment"
+        e?.message || "Could not post your Moment."
       );
-
-
     } finally {
-
       setPosting(false);
-
     }
-
   };
-
 
   // =========================================================
   // OPEN MY MOMENTS
   // =========================================================
 
   const openMyMoment = () => {
-
-    // If no status exists,
-    // open gallery directly
+    // No moments → open gallery
     if (myStatuses.length === 0) {
-
       handleAddMoment();
-
       return;
     }
 
-
-    // Send ALL my statuses
-    const statusesJson =
-      JSON.stringify(myStatuses);
-
-
-    // Start from first status
-    const firstStatus =
-      myStatuses[0];
-
+    const firstStatus = myStatuses[0];
 
     router.push({
-
       pathname: "/status-view",
-
       params: {
-
-        id: firstStatus.id,
-
+        id: String(firstStatus.id),
         mine: "true",
 
-
-        // First status image
         image:
           firstStatus.content_image ||
           profileImage,
-
 
         name:
           firstStatus.name ||
           name,
 
-
         profileImage:
           firstStatus.profile_image ||
           profileImage,
 
+        createdAt: new Date(
+          firstStatus.created_at
+        ).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
 
-        createdAt:
-          new Date(
-            firstStatus.created_at
-          ).toLocaleTimeString([], {
+        statuses: JSON.stringify(myStatuses),
 
-            hour: "2-digit",
-
-            minute: "2-digit",
-
-          }),
-
-
-        // =================================================
-        // SEND ALL MY STATUSES
-        // =================================================
-
-        statuses:
-          statusesJson,
-
-
-        // Start from first status
         currentIndex: "0",
-
       },
-
     });
-
   };
-
 
   // =========================================================
   // OPEN CONTACT MOMENT
   // =========================================================
 
-  const openContactMoment = (
-    item: StatusItem
-  ) => {
+  const openContactMoment = (item: StatusItem) => {
+    const contactStatuses = feed.filter(
+      (status) =>
+        status.username === item.username
+    );
 
-
-    // =====================================================
-    // GET ALL STATUSES BELONGING TO THIS CONTACT
-    // =====================================================
-
-    const contactStatuses =
-      feed.filter(
-        (status) =>
-          status.username === item.username
-      );
-
-
-    // =====================================================
-    // PUT THE TAPPED STATUS FIRST
-    // =====================================================
-
+    // Tapped status first
     const sortedStatuses = [
-
       item,
-
       ...contactStatuses.filter(
-        (status) =>
-          status.id !== item.id
+        (status) => status.id !== item.id
       ),
-
     ];
 
-
-    // =====================================================
-    // OPEN STATUS VIEW
-    // =====================================================
-
     router.push({
-
       pathname: "/status-view",
-
       params: {
-
-        id: item.id,
-
-        // This is NOT my status
+        id: String(item.id),
         mine: "false",
 
-
-        // Tapped contact status
         image:
           item.content_image ||
-          item.profile_image,
-
+          item.profile_image ||
+          "",
 
         name:
           item.name ||
-          item.username,
-
+          item.username ||
+          "Unknown",
 
         profileImage:
           item.profile_image ||
           "",
 
+        createdAt: new Date(
+          item.created_at
+        ).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
 
-        createdAt:
-          new Date(
-            item.created_at
-          ).toLocaleTimeString([], {
+        statuses: JSON.stringify(
+          sortedStatuses
+        ),
 
-            hour: "2-digit",
-
-            minute: "2-digit",
-
-          }),
-
-
-        // =================================================
-        // SEND ONLY THIS CONTACT'S STATUSES
-        // =================================================
-
-        statuses:
-          JSON.stringify(
-            sortedStatuses
-          ),
-
-
-        // Start from tapped status
         currentIndex: "0",
-
       },
-
     });
-
   };
 
-
   // =========================================================
-  // CREATE UNIQUE CONTACT LIST
-  // =========================================================
-  //
-  // If Madhav has 3 statuses:
-  //
-  // Madhav status 1
-  // Madhav status 2
-  // Madhav status 3
-  //
-  // Recent Updates should show Madhav only ONCE.
-  //
+  // UNIQUE CONTACTS
   // =========================================================
 
   const recentContacts: StatusItem[] = [];
 
-  const contactMap =
-    new Map<string, StatusItem>();
-
+  const contactMap = new Map<
+    string,
+    StatusItem
+  >();
 
   feed.forEach((item) => {
-
     const key =
       item.username ||
       item.name ||
-      item.id;
+      String(item.id);
 
-
+    // Because feed is newest-first,
+    // first item is the newest status.
     if (!contactMap.has(key)) {
-
-      contactMap.set(
-        key,
-        item
-      );
-
+      contactMap.set(key, item);
     }
-
   });
-
 
   contactMap.forEach((item) => {
-
     recentContacts.push(item);
-
   });
 
+  // =========================================================
+  // TIME FORMAT
+  // =========================================================
+
+  const formatTime = (date: string) => {
+    try {
+      return new Date(date).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return "";
+    }
+  };
 
   // =========================================================
-  // MAIN UI
+  // MY IMAGE
+  // =========================================================
+
+  const myMomentImage =
+    myStatuses.length > 0
+      ? myStatuses[0].content_image || profileImage
+      : profileImage;
+
+  // =========================================================
+  // UI
   // =========================================================
 
   return (
-
     <LinearGradient
-
       colors={[
         "#ffe7f5",
         "#ffffff",
         "#f6e5ff",
       ]}
-
       style={{
         flex: 1,
         paddingTop: 55,
         paddingHorizontal: 16,
       }}
-
     >
+      {/* =====================================================
+          TITLE
+      ===================================================== */}
 
-      {/* ================================================= */}
-      {/* PAGE TITLE */}
-      {/* ================================================= */}
-
-      <Text
-        className="
-          text-[30px]
-          font-bold
-          text-[#b03dd7]
-          mb-[20px]
-        "
-      >
+      <Text className="text-[30px] font-bold text-[#b03dd7] mb-[20px]">
         Moments
       </Text>
 
-
-      {/* ================================================= */}
-      {/* ERROR */}
-      {/* ================================================= */}
-
-      {error ? (
-
-        <Text
-          className="
-            text-[15px]
-            text-[#B00020]
-            mb-[15px]
-          "
-        >
-          {error}
-        </Text>
-
-      ) : (
-
-        <>
-
-          {/* ================================================= */}
-          {/* TODAY */}
-          {/* ================================================= */}
-
-          <Text
-            className="
-              text-[20px]
-              font-semibold
-              text-[#444]
-              mb-[15px]
-              mt-[10px]
-            "
-          >
-            Today
-          </Text>
-
-
-          {/* ================================================= */}
-          {/* MY MOMENT */}
-          {/* ================================================= */}
-
-          <TouchableOpacity
-
-            className="
-              flex-row
-              items-center
-              mb-[20px]
-            "
-
-            onPress={() =>
-              openMyMoment()
-            }
-
-            disabled={posting}
-
-          >
-
-            {/* ================================================= */}
-            {/* PROFILE IMAGE */}
-            {/* ================================================= */}
-
-            <View>
-
-              {myStatuses.length > 0 ? (
-
-                <Image
-
-                  source={{
-                    uri:
-                      myStatuses[0]
-                        .content_image ||
-                      profileImage,
-                  }}
-
-                  className="
-                    w-[60px]
-                    h-[60px]
-                    rounded-[30px]
-                    border-[3px]
-                    border-[#00d26a]
-                    mr-[15px]
-                  "
-
-                />
-
-              ) : profileImage ? (
-
-                <Image
-
-                  source={{
-                    uri: profileImage,
-                  }}
-
-                  className="
-                    w-[60px]
-                    h-[60px]
-                    rounded-[30px]
-                    border-[3px]
-                    border-[#ccc]
-                    mr-[15px]
-                  "
-
-                />
-
-              ) : (
-
-                <View
-                  className="
-                    w-[60px]
-                    h-[60px]
-                    rounded-[30px]
-                    border-[3px]
-                    border-[#ccc]
-                    mr-[15px]
-                    items-center
-                    justify-center
-                    bg-white
-                  "
-                >
-
-                  <Ionicons
-                    name="person"
-                    size={28}
-                    color="#999"
-                  />
-
-                </View>
-
-              )}
-
-
-              {/* ================================================= */}
-              {/* PLUS BUTTON */}
-              {/* ================================================= */}
-
-              <TouchableOpacity
-
-                onPress={handleAddMoment}
-
-                disabled={posting}
-
-                className="
-                  absolute
-                  bottom-0
-                  right-[10px]
-                  w-[22px]
-                  h-[22px]
-                  rounded-[11px]
-                  bg-[#b03dd7]
-                  items-center
-                  justify-center
-                  border-[2px]
-                  border-white
-                "
-
-              >
-
-                {posting ? (
-
-                  <ActivityIndicator
-                    size="small"
-                    color="#fff"
-                  />
-
-                ) : (
-
-                  <Ionicons
-                    name="add"
-                    size={15}
-                    color="#fff"
-                  />
-
-                )}
-
-              </TouchableOpacity>
-
-            </View>
-
-
-            {/* ================================================= */}
-            {/* MY MOMENT TEXT */}
-            {/* ================================================= */}
-
-            <View>
-
-              <Text
-                className="
-                  text-[18px]
-                  font-bold
-                  text-[#222]
-                "
-              >
-                My Moment
-              </Text>
-
-
-              <Text
-                className="
-                  text-[14px]
-                  text-[#666]
-                  mt-[4px]
-                "
-              >
-
-                {myStatuses.length > 0
-
-                  ? `Viewed by ${
-                      myStatuses[0]
-                        .viewer_count
-                    } ${
-                      myStatuses[0]
-                        .viewer_count === 1
-                        ? "member"
-                        : "members"
-                    }`
-
-                  : "Tap to add a status update"
-
-                }
-
-              </Text>
-
-
-              {/* ================================================= */}
-              {/* NUMBER OF MOMENTS */}
-              {/* ================================================= */}
-
-              {myStatuses.length > 1 && (
-
-                <Text
-                  className="
-                    text-[12px]
-                    text-[#999]
-                    mt-[2px]
-                  "
-                >
-                  {myStatuses.length} Moments
-                </Text>
-
-              )}
-
-            </View>
-
-          </TouchableOpacity>
-
-
-          {/* ================================================= */}
-          {/* RECENT UPDATES */}
-          {/* ================================================= */}
-
-          <Text
-            className="
-              text-[20px]
-              font-semibold
-              text-[#444]
-              mb-[15px]
-              mt-[10px]
-            "
-          >
-            Recent Updates
-          </Text>
-
-
-          <FlatList
-
-            data={recentContacts}
-
-            keyExtractor={(item) =>
-              item.username ||
-              item.id
-            }
-
-            showsVerticalScrollIndicator={
-              false
-            }
-
-
-            ListEmptyComponent={
-
-              <Text
-                className="
-                  text-[14px]
-                  text-[#777]
-                  mt-[10px]
-                "
-              >
-                No recent Moments from your
-                contacts yet
-              </Text>
-
-            }
-
-
-            renderItem={({ item }) => (
-
-              <TouchableOpacity
-
-                className="
-                  flex-row
-                  items-center
-                  mb-[20px]
-                "
-
-                // =================================================
-                // IMPORTANT:
-                // SEND THE CONTACT ITEM
-                // =================================================
-
-                onPress={() =>
-                  openContactMoment(item)
-                }
-
-              >
-
-                {/* ================================================= */}
-                {/* CONTACT STATUS IMAGE */}
-                {/* ================================================= */}
-
-                <Image
-
-                  source={{
-                    uri:
-                      item.content_image ||
-                      item.profile_image,
-                  }}
-
-                  className={`
-                    w-[60px]
-                    h-[60px]
-                    rounded-[30px]
-                    border-[3px]
-                    mr-[15px]
-
-                    ${
-                      item.viewed_by_me
-                        ? "border-[#ccc]"
-                        : "border-[#00d26a]"
-                    }
-                  `}
-
-                />
-
-
-                {/* ================================================= */}
-                {/* CONTACT NAME + TIME */}
-                {/* ================================================= */}
-
-                <View>
-
-                  <Text
-                    className="
-                      text-[18px]
-                      font-bold
-                      text-[#222]
-                    "
-                  >
-                    {item.name}
-                  </Text>
-
-
-                  <Text
-                    className="
-                      text-[14px]
-                      text-[#666]
-                      mt-[4px]
-                    "
-                  >
-
-                    {new Date(
-                      item.created_at
-                    ).toLocaleTimeString([], {
-
-                      hour: "2-digit",
-
-                      minute: "2-digit",
-
-                    })}
-
-                  </Text>
-
-                </View>
-
-              </TouchableOpacity>
-
-            )}
-
+      {/* =====================================================
+          LOADING
+      ===================================================== */}
+
+      {loading ? (
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator
+            size="large"
+            color="#b03dd7"
           />
 
-        </>
+          <Text className="mt-[10px] text-[#777]">
+            Loading Moments...
+          </Text>
+        </View>
+      ) : (
+        <>
+          {/* =================================================
+              ERROR
+          ================================================= */}
 
+          {error ? (
+            <View className="items-center mt-[20px]">
+              <Text className="text-[15px] text-[#B00020] text-center">
+                {error}
+              </Text>
+
+              <TouchableOpacity
+                onPress={loadData}
+                className="mt-[15px] px-[20px] py-[10px] rounded-[20px] bg-[#b03dd7]"
+              >
+                <Text className="text-white font-bold">
+                  Try Again
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              {/* =============================================
+                  TODAY
+              ============================================= */}
+
+              <Text className="text-[20px] font-semibold text-[#444] mb-[15px] mt-[10px]">
+                Today
+              </Text>
+
+              {/* =============================================
+                  MY MOMENT
+              ============================================= */}
+
+              <View className="flex-row items-center mb-[20px]">
+                {/* Profile / status image */}
+
+                <TouchableOpacity
+                  onPress={openMyMoment}
+                  disabled={posting}
+                >
+                  <View>
+                    {myMomentImage ? (
+                      <Image
+                        source={{
+                          uri: myMomentImage,
+                        }}
+                        className="w-[60px] h-[60px] rounded-[30px] border-[3px] border-[#00d26a]"
+                      />
+                    ) : (
+                      <View className="w-[60px] h-[60px] rounded-[30px] border-[3px] border-[#ccc] bg-white items-center justify-center">
+                        <Ionicons
+                          name="person"
+                          size={28}
+                          color="#999"
+                        />
+                      </View>
+                    )}
+
+                    {/* Add button */}
+
+                    <TouchableOpacity
+                      onPress={handleAddMoment}
+                      disabled={posting}
+                      className="absolute bottom-0 right-0 w-[23px] h-[23px] rounded-[12px] bg-[#b03dd7] items-center justify-center border-[2px] border-white"
+                    >
+                      {posting ? (
+                        <ActivityIndicator
+                          size="small"
+                          color="#fff"
+                        />
+                      ) : (
+                        <Ionicons
+                          name="add"
+                          size={15}
+                          color="#fff"
+                        />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+
+                {/* My moment text */}
+
+                <TouchableOpacity
+                  onPress={openMyMoment}
+                  disabled={posting}
+                  className="ml-[15px] flex-1"
+                >
+                  <Text className="text-[18px] font-bold text-[#222]">
+                    My Moment
+                  </Text>
+
+                  <Text className="text-[14px] text-[#666] mt-[4px]">
+                    {myStatuses.length > 0
+                      ? `Viewed by ${
+                          myStatuses[0]
+                            .viewer_count || 0
+                        } ${
+                          (myStatuses[0]
+                            .viewer_count || 0) === 1
+                            ? "member"
+                            : "members"
+                        }`
+                      : "Tap to add a status update"}
+                  </Text>
+
+                  {myStatuses.length > 1 && (
+                    <Text className="text-[12px] text-[#999] mt-[2px]">
+                      {myStatuses.length} Moments
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* =============================================
+                  RECENT UPDATES
+              ============================================= */}
+
+              <Text className="text-[20px] font-semibold text-[#444] mb-[15px] mt-[10px]">
+                Recent Updates
+              </Text>
+
+              <FlatList
+                data={recentContacts}
+                keyExtractor={(item) =>
+                  item.username ||
+                  String(item.id)
+                }
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{
+                  paddingBottom: 80,
+                }}
+                ListEmptyComponent={
+                  <Text className="text-[14px] text-[#777] mt-[10px]">
+                    No recent Moments from your
+                    contacts yet.
+                  </Text>
+                }
+                renderItem={({ item }) => {
+                  const image =
+                    item.content_image ||
+                    item.profile_image ||
+                    "";
+
+                  return (
+                    <TouchableOpacity
+                      onPress={() =>
+                        openContactMoment(item)
+                      }
+                      className="flex-row items-center mb-[20px]"
+                    >
+                      {/* Contact image */}
+
+                      {image ? (
+                        <Image
+                          source={{ uri: image }}
+                          className={`w-[60px] h-[60px] rounded-[30px] border-[3px] mr-[15px] ${
+                            item.viewed_by_me
+                              ? "border-[#ccc]"
+                              : "border-[#00d26a]"
+                          }`}
+                        />
+                      ) : (
+                        <View className="w-[60px] h-[60px] rounded-[30px] border-[3px] border-[#ccc] mr-[15px] bg-white items-center justify-center">
+                          <Ionicons
+                            name="person"
+                            size={28}
+                            color="#999"
+                          />
+                        </View>
+                      )}
+
+                      {/* Contact information */}
+
+                      <View className="flex-1">
+                        <Text className="text-[18px] font-bold text-[#222]">
+                          {item.name ||
+                            item.username ||
+                            "Unknown"}
+                        </Text>
+
+                        <Text className="text-[14px] text-[#666] mt-[4px]">
+                          {formatTime(
+                            item.created_at
+                          )}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            </>
+          )}
+        </>
       )}
 
+      {/* =====================================================
+          BOTTOM NAVIGATION
+      ===================================================== */}
 
-      {/* ================================================= */}
-      {/* BOTTOM NAVIGATION */}
-      {/* ================================================= */}
-
-      <View
-        className="
-          absolute
-          left-0
-          right-0
-          bottom-0
-          h-[60px]
-          flex-row
-          justify-around
-          items-center
-          bg-white
-          rounded-t-[25px]
-        "
-      >
-
+      <View className="absolute left-0 right-0 bottom-0 h-[60px] flex-row justify-around items-center bg-white rounded-t-[25px]">
         {/* ALL */}
 
         <TouchableOpacity
-          onPress={() =>
-            router.push("/all")
-          }
+          onPress={() => router.push("/all")}
         >
-
           <Ionicons
             name="document-text-outline"
             size={28}
             color="#777"
           />
-
         </TouchableOpacity>
-
 
         {/* STATUS */}
 
         <TouchableOpacity>
-
           <Zocial
             name="statusnet"
             size={28}
             color="#b03dd7"
           />
-
         </TouchableOpacity>
 
+        {/* REWARDS */}
 
-        {/* GIFT */}
-
-        <TouchableOpacity>
-
+        <TouchableOpacity
+          onPress={() =>
+            router.push("/rewards")
+          }
+        >
           <Ionicons
             name="gift-outline"
             size={28}
             color="#777"
           />
-
         </TouchableOpacity>
-
 
         {/* PROFILE */}
 
@@ -981,18 +611,13 @@ setMyStatuses(myStatusList);
             router.push("/profile")
           }
         >
-
           <Ionicons
             name="person-outline"
             size={28}
             color="#777"
           />
-
         </TouchableOpacity>
-
       </View>
-
     </LinearGradient>
-
   );
 }
