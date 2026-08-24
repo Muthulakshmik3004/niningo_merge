@@ -15,64 +15,20 @@ import {
 
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useTheme } from "../constants/ThemeContext";
 
-const DATA = [
-  {
-    id: "1",
-    name: "Arun",
-    msg: "Task Assigned",
-    time: "11:54 am",
-    count: 1,
-    image: "https://i.pravatar.cc/150?img=1",
-    color: "#39E600",
-  },
-  {
-    id: "2",
-    name: "Usagi",
-    msg: "Task Assigned",
-    time: "9:55 am",
-    count: 1,
-    image: "https://i.pravatar.cc/150?img=2",
-    color: "#39E600",
-  },
-  {
-    id: "3",
-    name: "Praveen",
-    msg: "Task Assigned",
-    time: "Yesterday",
-    count: 1,
-    image: "https://i.pravatar.cc/150?img=3",
-    color: "#FF8A00",
-  },
-  {
-    id: "4",
-    name: "Natasa",
-    msg: "Task Assigned",
-    time: "Yesterday",
-    count: 1,
-    image: "https://i.pravatar.cc/150?img=4",
-    color: "#FF8A00",
-  },
-  {
-    id: "5",
-    name: "Kuina",
-    msg: "Task Assigned",
-    time: "Yesterday",
-    count: 1,
-    image: "https://i.pravatar.cc/150?img=5",
-    color: "#FF8A00",
-  },
-];
+const DATA: any[] = [];
 
 export default function TaskScreen() {
+  const { theme } = useTheme();
 
   const [selected, setSelected] = useState("All");
   const [search, setSearch] = useState("");
 
-return (
+ return (
   <SafeAreaView style={{ flex: 1 }}    edges={["left", "right", "bottom"]}>
     <LinearGradient
-      colors={["#FFD7F8", "#FFF7FD"]}
+      colors={theme.gradient}
       style={{ flex: 1, paddingTop: 38, paddingHorizontal: 15 }}
     >
 
@@ -80,7 +36,7 @@ return (
 
       <View className="flex-row justify-between items-center mb-[15px]">
 
-        <Text className="text-[34px] font-bold text-[#B84CE8]">
+        <Text className="text-[34px] font-bold" style={{ color: theme.primary }}>
           Task
         </Text>
 
@@ -141,7 +97,11 @@ return (
         router.push("/groups");
       }
     }}
-    className={`px-[18px] py-[7px] rounded-[18px] border border-[#B37BD8] ${selected === item ? "bg-[#F1C2F7]" : "bg-[#FFF]"}`}
+    className="px-[18px] py-[7px] rounded-[18px] border"
+    style={{
+      borderColor: theme.primary,
+      backgroundColor: selected === item ? theme.primary + "33" : "#FFF",
+    }}
   >
     <Text
       style={{
@@ -218,7 +178,7 @@ alignItems:"flex-end" moves the content to the right side. */}
         style={{ elevation: 8 }}
       >
   <LinearGradient
-    colors={["#F553E7", "#6B63FF"]}
+    colors={[theme.primary, theme.primary]}
     style={{
       width: 60,
       height: 60,
@@ -258,4 +218,4 @@ alignItems:"flex-end" moves the content to the right side. */}
           </LinearGradient>
           </SafeAreaView>
   );
-}
+}

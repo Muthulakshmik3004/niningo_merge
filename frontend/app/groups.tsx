@@ -15,44 +15,24 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useTheme } from "../constants/ThemeContext";
 
-const DATA = [
-  {
-    id: "1",
-    name: "Office",
-    msg: "",
-    time: "Yesterday",
-    image: "https://i.pravatar.cc/150?img=3",
-  },
-  {
-    id: "2",
-    name: "Family",
-    msg: "",
-    time: "Yesterday",
-    image: "https://i.pravatar.cc/150?img=4",
-  },
-  {
-    id: "3",
-    name: "Friends",
-    msg: "",
-    time: "Yesterday",
-    image: "https://i.pravatar.cc/150?img=5",
-  },
-];
+const DATA: any[] = [];
 
 export default function UnreadScreen() {
+  const { theme } = useTheme();
   const [selected, setSelected] = useState("Groups");
   const [search, setSearch] = useState("");
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={["left", "right", "bottom"]}>
       <LinearGradient
-        colors={["#FFD7F8", "#FFF7FD"]}
+        colors={theme.gradient}
         style={{ flex: 1, paddingTop: 38, paddingHorizontal: 15 }}
       >
         {/* Header */}
         <View className="flex-row justify-between items-center mb-[15px]">
-          <Text className="text-[34px] font-bold text-[#B84CE8]">Task</Text>
+          <Text className="text-[34px] font-bold" style={{ color: theme.primary }}>Task</Text>
 
           <View className="items-center">
             <Text className="text-[24px]">❤️‍🔥</Text>
@@ -90,9 +70,11 @@ onPress={() => {
   if (item === "Unread") router.push("/unread");
   if (item === "Pending") router.push("/pending");
 }}
-              className={`px-[18px] py-[7px] rounded-[18px] border border-[#B37BD8] ${
-                selected === item ? "bg-[#F1C2F7]" : "bg-[#FFF]"
-              }`}
+              className="px-[18px] py-[7px] rounded-[18px] border"
+              style={{
+                borderColor: theme.primary,
+                backgroundColor: selected === item ? theme.primary + "33" : "#FFF",
+              }}
             >
               <Text
                 style={{
@@ -133,16 +115,16 @@ onPress={() => {
           className="absolute right-[20px] bottom-[80px]"
           style={{ elevation: 8 }}
         >
-          <LinearGradient
-            colors={["#F553E7", "#6B63FF"]}
-            style={{
-              width: 60,
-              height: 60,
-              borderRadius: 30,
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
+  <LinearGradient
+    colors={[theme.primary, theme.primary]}
+    style={{
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      justifyContent: "center",
+      alignItems: "center",
+    }}
+  >
             <Ionicons
               name="add"
               size={34}

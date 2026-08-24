@@ -13,9 +13,11 @@ import {
   Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useTheme } from "../constants/ThemeContext";
 
 
 export default function OTPScreen() {
+  const { theme } = useTheme();
 
   const [otp, setOtp] = useState(["", "", "", ""]);
   const [seconds, setSeconds] = useState(45);
@@ -77,7 +79,7 @@ export default function OTPScreen() {
 
   return (
     <LinearGradient
-      colors={["#FBD0FD", "#FDE2FB", "#FFF9FE"]}
+      colors={theme.gradient}
       style={{ flex: 1, alignItems: "center", paddingTop: 60 }}
     >
       <Text className="text-[32px] font-bold text-[#222]">Verify Mobile Number</Text>
@@ -123,9 +125,9 @@ export default function OTPScreen() {
   ))}
 </View>
 
-<TouchableOpacity onPress={handleVerify}>
+ <TouchableOpacity onPress={handleVerify}>
   <LinearGradient
-    colors={["#F553E7", "#7B67FF"]}
+    colors={[theme.primary, theme.primary]}
     style={{ marginTop: 30, height: 55, borderRadius: 15, justifyContent: "center", alignItems: "center" }}
     start={{ x: 0, y: 0 }}
     end={{ x: 1, y: 0 }}
@@ -135,9 +137,9 @@ export default function OTPScreen() {
 </TouchableOpacity>
       </View>
 {/* timer ooda */}
-  <Text className="mt-[-170px] text-[#C14AF4] text-[22px] font-bold">
-  00:{seconds < 10 ? `0${seconds}` : seconds}
-</Text>
+  <Text className="mt-[-170px] font-bold text-[22px]" style={{ color: theme.primary }}>
+   {seconds < 10 ? `0${seconds}` : seconds}
+  </Text>
 
       <Text className="mt-[15px] text-[18px]">
         Didn't receive the code?
@@ -152,7 +154,8 @@ export default function OTPScreen() {
   }}
 >
   <Text
-    className={`mt-[15px] text-[18px] font-bold ${canResend ? "text-[#C14AF4]" : "text-[#999]"}`}
+    className={`mt-[15px] text-[18px] font-bold ${canResend ? "" : "text-[#999]"}`}
+    style={{ color: canResend ? theme.primary : "#999" }}
   >
     Resend OTP
   </Text>

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { getCurrentProfileAsync } from "./ProfileStore";
 
 export type ThemeKey = "blue" | "purple" | "orange" | "green" | "cyan";
 
@@ -60,6 +61,17 @@ const ThemeContext = createContext<ThemeContextType>({
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [themeKey, setThemeKey] = useState<ThemeKey>("purple");
+
+  useEffect(() => {
+    const initTheme = async () => {
+      const profile = await getCurrentProfileAsync();
+      const savedTheme = profile?.theme;
+      if (savedTheme && savedTheme in THEMES) {
+        setThemeKey(savedTheme as ThemeKey);
+      }
+    };
+    initTheme();
+  }, []);
 
   return (
     <ThemeContext.Provider value={{ theme: THEMES[themeKey], setThemeKey }}>

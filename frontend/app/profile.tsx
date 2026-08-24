@@ -1,8 +1,6 @@
-// 3
 import { router } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
 
-` `
 import * as ImagePicker from "expo-image-picker";
 import { Picker } from "@react-native-picker/picker";
 
@@ -18,9 +16,9 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import BACKEND_URL from "../config";
+import { setCurrentProfile } from "../constants/ProfileStore";
 
 export default function ProfileScreen() {
-    
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
@@ -31,24 +29,24 @@ export default function ProfileScreen() {
 
   // Function to open the image gallery
   const pickImage = async () => {
-  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-  if (!permission.granted) {
-    alert("Gallery permission required");
-    return;
-  }
+    if (!permission.granted) {
+      alert("Gallery permission required");
+      return;
+    }
 
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ["images"],
-    allowsEditing: true,
-    aspect: [1, 1],
-    quality: 1,
-  });
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
 
-  if (!result.canceled) {
-    setImage(result.assets[0].uri);
-  }
-};
+    if (!result.canceled) {
+      setImage(result.assets[0].uri);
+    }
+  };
 
   const handleContinue = async () => {
     if (!name.trim()) {
@@ -57,6 +55,22 @@ export default function ProfileScreen() {
     }
     if (!username.trim()) {
       alert("Username is required");
+      return;
+    }
+    if (!bio.trim()) {
+      alert("Bio is required");
+      return;
+    }
+    if (!language) {
+      alert("Language is required");
+      return;
+    }
+    if (!gender) {
+      alert("Gender is required");
+      return;
+    }
+    if (!image) {
+      alert("Profile image is required");
       return;
     }
 
@@ -77,15 +91,33 @@ export default function ProfileScreen() {
         }),
       });
 
-      const data = await response.json();
+      let data: any = {};
+      const rawText = await response.text();
+      try {
+        data = JSON.parse(rawText);
+      } catch (parseError) {
+        console.error("Failed to parse JSON response. Server returned:", rawText);
+      }
 
       if (response.ok) {
-        router.push("/location");
+        await setCurrentProfile({
+          name: name.trim(),
+          username: username.trim().replace(/^@/, ""),
+          bio: bio.trim(),
+          language,
+          gender,
+          profile_image: image,
+          theme: data.profile?.theme || "purple",
+        });
+        router.push({
+          pathname: "/location",
+          params: { username: username.trim().replace(/^@/, "") }
+        });
       } else {
-        alert(data.error || "Failed to save profile");
+        alert(data.error || "Server error occurred. Please try again.");
       }
     } catch (error) {
-      console.error(error);
+      console.error("Fetch exception:", error);
       alert("Network error. Please make sure the backend is running.");
     } finally {
       setLoading(false);

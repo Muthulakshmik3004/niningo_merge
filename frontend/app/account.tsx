@@ -8,13 +8,17 @@ import {
   Easing,
   ScrollView,
   Alert,
+  TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons, FontAwesome } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { useTheme, THEMES, ThemeKey } from "../constants/ThemeContext";
+import { getCurrentProfile, setCurrentProfile, getCurrentProfileAsync } from "../constants/ProfileStore";
+import BACKEND_URL from "../config";
 
 export default function AccountScreen() {
   const { theme, setThemeKey } = useTheme();
@@ -22,6 +26,24 @@ export default function AccountScreen() {
   const [profileImage, setProfileImage] = useState<string>(
     "https://i.pravatar.cc/150?img=32"
   );
+
+  const [name, setName] = useState("");
+  const [bio, setBio] = useState("");
+  const [username, setUsername] = useState("");
+  const [selectedTheme, setSelectedTheme] = useState<ThemeKey>(theme.key);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [saveVisible, setSaveVisible] = useState(false);
+
+  const originalName = useRef("");
+  const originalBio = useRef("");
+  const originalTheme = useRef<ThemeKey>(theme.key);
+  const originalImage = useRef<string>("https://i.pravatar.cc/150?img=32");
+
+  useEffect(() => {
+    setSelectedTheme(theme.key);
+    originalTheme.current = theme.key;
+  }, [theme.key]);
 
   // Entrance Animations
   const headerOpacity = useRef(new Animated.Value(0)).current;
@@ -44,7 +66,76 @@ export default function AccountScreen() {
   const themeExpandAnim = useRef(new Animated.Value(0)).current;
   const chevronRotateAnim = useRef(new Animated.Value(0)).current;
 
+  const checkChanges = () => {
+    const nameChanged = name.trim() !== originalName.current.trim();
+    const bioChanged = bio.trim() !== originalBio.current.trim();
+    const themeChanged = selectedTheme !== originalTheme.current;
+    const imageChanged = profileImage !== originalImage.current;
+    setSaveVisible(nameChanged || bioChanged || themeChanged || imageChanged);
+  };
+
+  const fetchProfileFromBackend = async () => {
+    const cached = getCurrentProfile();
+    if (!cached?.username) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `${BACKEND_URL}/app/profile/?username=${encodeURIComponent(cached.username)}`
+      );
+      const data = await response.json();
+      if (response.ok && data.profile) {
+        const p = data.profile;
+        setName(p.name || "");
+        setBio(p.bio || "");
+        setUsername(p.username || "");
+        const savedTheme = (p.theme as ThemeKey) || "purple";
+        setSelectedTheme(savedTheme);
+        originalName.current = p.name || "";
+        originalBio.current = p.bio || "";
+        originalTheme.current = savedTheme;
+        if (p.profile_image) {
+          setProfileImage(p.profile_image);
+        }
+        originalImage.current = p.profile_image || "https://i.pravatar.cc/150?img=32";
+        await setCurrentProfile({
+          name: p.name || "",
+          username: p.username || "",
+          bio: p.bio || "",
+          language: p.language || "",
+          gender: p.gender || "",
+          theme: p.theme || "purple",
+          profile_image: p.profile_image || null,
+        });
+      }
+    } catch (err) {
+      console.error("Fetch profile error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
+    const init = async () => {
+      const cached = await getCurrentProfileAsync();
+      if (cached) {
+        setName(cached.name || "");
+        setBio(cached.bio || "");
+        setUsername(cached.username || "");
+        const savedTheme = (cached.theme as ThemeKey) || "purple";
+        setSelectedTheme(savedTheme);
+        originalName.current = cached.name || "";
+        originalBio.current = cached.bio || "";
+        originalTheme.current = savedTheme;
+        if (cached.profile_image) {
+          setProfileImage(cached.profile_image);
+        }
+        originalImage.current = cached.profile_image || "https://i.pravatar.cc/150?img=32";
+      }
+      await fetchProfileFromBackend();
+    };
+    init();
+
     // 1. Header entrance
     Animated.parallel([
       Animated.timing(headerOpacity, {
@@ -128,10 +219,81 @@ export default function AccountScreen() {
       });
 
       if (!result.canceled && result.assets && result.assets[0].uri) {
-        setProfileImage(result.assets[0].uri);
+        const uri = result.assets[0].uri;
+        setProfileImage(uri);
+        const profile = getCurrentProfile();
+        if (profile?.username) {
+          await setCurrentProfile({
+            name: profile.name || "",
+            username: profile.username || "",
+            bio: profile.bio || "",
+            language: profile.language || "",
+            gender: profile.gender || "",
+            theme: profile.theme || "purple",
+            profile_image: uri,
+          });
+        }
+        checkChanges();
       }
     } catch (error) {
       console.log("Image picker error:", error);
+    }
+  };
+
+  const saveProfile = async () => {
+    if (!saveVisible) return;
+
+    const profile = getCurrentProfile();
+    if (!profile?.username) {
+      Alert.alert("Error", "No profile loaded.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/app/profile/`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: profile.username,
+          name: name.trim(),
+          bio: bio.trim(),
+          theme: selectedTheme,
+          profile_image: profileImage,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        const updated = data.profile || {};
+        await setCurrentProfile({
+          name: updated.name || name.trim(),
+          username: updated.username || profile.username,
+          bio: updated.bio || bio.trim(),
+          language: updated.language || profile.language || "",
+          gender: updated.gender || profile.gender || "",
+          theme: updated.theme || selectedTheme,
+          profile_image: updated.profile_image || profileImage,
+        });
+        originalName.current = updated.name || name.trim();
+        originalBio.current = updated.bio || bio.trim();
+        originalTheme.current = (updated.theme as ThemeKey) || selectedTheme;
+        originalImage.current = updated.profile_image || profileImage;
+        setSaveVisible(false);
+        Alert.alert("Success", "Profile updated successfully!");
+      } else {
+        Alert.alert(data.error || "Failed to update profile. Please try again.");
+      }
+    } catch (err: any) {
+      console.error("Update profile error:", err);
+      Alert.alert(
+        "Connection Error",
+        `Could not reach the backend server at: ${BACKEND_URL}\n\nError details: ${err.message || err}`
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -193,7 +355,7 @@ export default function AccountScreen() {
               className="mr-[15px]"
               activeOpacity={0.7}
             >
-              <Ionicons name="arrow-back" size={28} color="#000" />
+              <Ionicons name="arrow-back" size={28} color={theme.primary} />
             </TouchableOpacity>
             <Text
               className="text-[28px] font-bold"
@@ -202,6 +364,12 @@ export default function AccountScreen() {
               Account
             </Text>
           </Animated.View>
+
+          {loading && (
+            <View className="items-center mb-[20px]">
+              <ActivityIndicator size="small" color={theme.primary} />
+            </View>
+          )}
 
           {/* Profile Picture Section */}
           <Animated.View
@@ -227,7 +395,7 @@ export default function AccountScreen() {
             </TouchableOpacity>
           </Animated.View>
 
-          {/* Editable-looking Cards */}
+          {/* Editable Cards */}
           <View>
             {/* Name */}
             <Animated.View
@@ -236,9 +404,20 @@ export default function AccountScreen() {
                 transform: [{ translateY: fieldsAnimValues[0].translateY }],
               }}
             >
-              <View className="bg-white border border-[#E0E0E0] rounded-[18px] h-[60px] flex-row items-center justify-between px-[20px] mb-[15px]">
-                <Text className="text-[18px] font-bold text-[#000]">Arisu</Text>
-                <FontAwesome name="pencil" size={20} color="#000" />
+              <View className="bg-white border border-[#E0E0E0] rounded-[18px] px-[20px] mb-[15px]">
+                <Text className="text-[14px] font-semibold mt-[12px]" style={{ color: theme.primary }}>
+                  Name
+                </Text>
+                <TextInput
+                  value={name}
+                  onChangeText={(text) => {
+                    setName(text);
+                    checkChanges();
+                  }}
+                  onBlur={checkChanges}
+                  className="text-[18px] font-bold text-[#000] pb-[12px] pt-[4px]"
+                  placeholder="Enter your name"
+                />
               </View>
             </Animated.View>
 
@@ -249,13 +428,24 @@ export default function AccountScreen() {
                 transform: [{ translateY: fieldsAnimValues[1].translateY }],
               }}
             >
-              <View className="bg-white border border-[#E0E0E0] rounded-[18px] h-[60px] flex-row items-center justify-between px-[20px] mb-[15px]">
-                <Text className="text-[18px] font-bold text-[#000]">Bio</Text>
-                <FontAwesome name="pencil" size={20} color="#000" />
+              <View className="bg-white border border-[#E0E0E0] rounded-[18px] px-[20px] mb-[15px]">
+                <Text className="text-[14px] font-semibold mt-[12px]" style={{ color: theme.primary }}>
+                  Bio
+                </Text>
+                <TextInput
+                  value={bio}
+                  onChangeText={(text) => {
+                    setBio(text);
+                    checkChanges();
+                  }}
+                  onBlur={checkChanges}
+                  placeholder="Tell us about yourself"
+                  className="text-[18px] font-bold text-[#000] pb-[12px] pt-[4px]"
+                />
               </View>
             </Animated.View>
 
-            {/* Username */}
+            {/* Username - READ ONLY */}
             <Animated.View
               style={{
                 opacity: fieldsAnimValues[2].opacity,
@@ -263,13 +453,13 @@ export default function AccountScreen() {
               }}
             >
               <View className="bg-white border border-[#E0E0E0] rounded-[18px] h-[60px] justify-center px-[20px] mb-[15px]">
-                <Text className="text-[18px] font-bold text-[#888]">
-                  @arisu123
+                <Text className="text-[18px] font-bold" style={{ color: theme.primary }}>
+                  @{username || "username"}
                 </Text>
               </View>
             </Animated.View>
 
-            {/* Gender */}
+            {/* Gender - READ ONLY */}
             <Animated.View
               style={{
                 opacity: fieldsAnimValues[3].opacity,
@@ -277,9 +467,34 @@ export default function AccountScreen() {
               }}
             >
               <View className="bg-white border border-[#E0E0E0] rounded-[18px] h-[60px] justify-center px-[20px] mb-[15px]">
-                <Text className="text-[18px] font-bold text-[#888]">male</Text>
+                <Text className="text-[18px] font-bold" style={{ color: theme.primary }}>
+                  {getCurrentProfile()?.gender || "Gender"}
+                </Text>
               </View>
             </Animated.View>
+
+            {/* Save Button - only visible when changed */}
+            {saveVisible && (
+              <TouchableOpacity onPress={saveProfile} disabled={saving} className="mb-[20px]">
+                <LinearGradient
+                  colors={saving ? ["#E0E0E0", "#9E9E9E"] : [theme.primary, theme.primary]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={{
+                    height: 55,
+                    borderRadius: 30,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color="#000" />
+                  ) : (
+                    <Text className="text-[20px] font-bold text-black">Save Changes</Text>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Theme Accordion Section */}
@@ -298,10 +513,10 @@ export default function AccountScreen() {
                 <View className="w-[36px] h-[36px] justify-center items-center mr-[15px]">
                   <Ionicons name="moon" size={30} color={theme.primary} />
                 </View>
-                <Text className="text-[20px] font-bold text-[#000]">Theme</Text>
+                <Text className="text-[20px] font-bold" style={{ color: theme.primary }}>Theme</Text>
               </View>
               <Animated.View style={{ transform: [{ rotate: chevronRotate }] }}>
-                <Ionicons name="chevron-down" size={24} color="#000" />
+                <Ionicons name="chevron-down" size={24} color={theme.primary} />
               </Animated.View>
             </TouchableOpacity>
 
@@ -321,7 +536,11 @@ export default function AccountScreen() {
                   return (
                     <TouchableOpacity
                       key={key}
-                      onPress={() => setThemeKey(key)}
+                      onPress={() => {
+                        setSelectedTheme(key);
+                        setThemeKey(key);
+                        checkChanges();
+                      }}
                       activeOpacity={0.8}
                       className="items-center justify-center"
                     >
@@ -329,7 +548,7 @@ export default function AccountScreen() {
                         className="w-[44px] h-[44px] rounded-full items-center justify-center border-2"
                         style={{
                           backgroundColor: colorPreset.colorHex,
-                          borderColor: isSelected ? "#000" : "transparent",
+                          borderColor: isSelected ? theme.primary : "transparent",
                           elevation: isSelected ? 4 : 1,
                         }}
                       >

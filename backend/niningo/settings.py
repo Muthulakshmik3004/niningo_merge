@@ -23,10 +23,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME")
 
-mongoengine.connect(
-    db=MONGO_DB_NAME,
-    host=MONGO_URI,
-)
+try:
+    mongoengine.connect(
+        db=MONGO_DB_NAME,
+        host=MONGO_URI,
+    )
+except Exception as e:
+    print(f"Warning: MongoDB connection failed: {e}")
+    print("Server will start, but database-dependent endpoints may fail until MongoDB is available.")
 
 
 # Quick-start development settings - unsuitable for production

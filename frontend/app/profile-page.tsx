@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -6,17 +6,23 @@ import {
   Image,
   Animated,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useTheme } from "../constants/ThemeContext";
+import { getCurrentProfileAsync, setCurrentProfile, clearCurrentProfile } from "../constants/ProfileStore";
+import BACKEND_URL from "../config";
 
 export default function ProfilePage() {
   const { theme } = useTheme();
+  const [profileImage, setProfileImage] = useState<string>("https://i.pravatar.cc/150?img=32");
+  const [displayName, setDisplayName] = useState("Arisu");
+  const [displayBio, setDisplayBio] = useState("Bio");
+  const [loading, setLoading] = useState(false);
 
-  // Animations
   const titleOpacity = useRef(new Animated.Value(0)).current;
   const titleTranslateY = useRef(new Animated.Value(-8)).current;
 
@@ -31,7 +37,41 @@ export default function ProfilePage() {
   ).current;
 
   useEffect(() => {
-    // 1. Title animation
+    const load = async () => {
+      const cached = await getCurrentProfileAsync();
+      if (cached?.username) {
+        try {
+          setLoading(true);
+          const response = await fetch(
+            `${BACKEND_URL}/app/profile/?username=${encodeURIComponent(cached.username)}`
+          );
+          const data = await response.json();
+          if (response.ok && data.profile) {
+            const p = data.profile;
+            setDisplayName(p.name || "");
+            setDisplayBio(p.bio || "");
+            if (p.profile_image) {
+              setProfileImage(p.profile_image);
+            }
+            await setCurrentProfile({
+              name: p.name || "",
+              username: p.username || "",
+              bio: p.bio || "",
+              language: p.language || "",
+              gender: p.gender || "",
+              theme: p.theme || "purple",
+              profile_image: p.profile_image || null,
+            });
+          }
+        } catch (err) {
+          console.error("Failed to fetch profile:", err);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    load();
+
     Animated.parallel([
       Animated.timing(titleOpacity, {
         toValue: 1,
@@ -45,7 +85,6 @@ export default function ProfilePage() {
       }),
     ]).start();
 
-    // 2. Header animation
     Animated.parallel([
       Animated.timing(headerOpacity, {
         toValue: 1,
@@ -59,7 +98,6 @@ export default function ProfilePage() {
       }),
     ]).start();
 
-    // 3. Staggered Menu animations
     const menuAnimations = menuAnimValues.map((anim) =>
       Animated.parallel([
         Animated.timing(anim.opacity, {
@@ -87,7 +125,10 @@ export default function ProfilePage() {
         {
           text: "Logout",
           style: "destructive",
-          onPress: () => router.replace("/"),
+          onPress: async () => {
+            await clearCurrentProfile();
+            router.replace("/");
+          },
         },
       ],
       { cancelable: true }
@@ -106,6 +147,12 @@ export default function ProfilePage() {
     <SafeAreaView style={{ flex: 1 }} edges={["left", "right", "bottom", "top"]}>
       <LinearGradient colors={theme.gradient} style={{ flex: 1 }}>
         <View className="px-[25px] pt-[20px] flex-1">
+          {loading && (
+            <View className="items-center mb-[15px]">
+              <ActivityIndicator size="small" color={theme.primary} />
+            </View>
+          )}
+
           {/* Animated Header Title */}
           <Animated.View
             style={{
@@ -130,16 +177,16 @@ export default function ProfilePage() {
             }}
           >
             <Image
-              source={{ uri: "https://i.pravatar.cc/150?img=32" }}
+              source={{ uri: profileImage }}
               className="w-[85px] h-[85px] rounded-full border-2 border-[#fff]"
             />
             <View className="ml-[20px] flex-1">
-              <Text className="text-[22px] font-bold text-black">Arisu</Text>
-              <Text className="text-[18px] text-[#666] font-semibold">Bio</Text>
+              <Text className="text-[22px] font-bold text-black">{displayName}</Text>
+              <Text className="text-[18px] text-[#666] font-semibold">{displayBio}</Text>
             </View>
             <TouchableOpacity
               className="items-center justify-center p-[5px]"
-              onPress={() => router.push("/activity")}
+              onPress={() => router.push("/ranking")}
               activeOpacity={0.7}
             >
               <MaterialCommunityIcons

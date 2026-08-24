@@ -11,8 +11,10 @@ import {
   Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { useTheme } from "../constants/ThemeContext";
 
 export default function App() {
+  const { theme } = useTheme();
   const [mobile, setMobile] = useState("");
 
   const handleMobile = (text: string) => {
@@ -25,7 +27,7 @@ export default function App() {
 
   return (
    <LinearGradient
-   colors={["#FBD0FD", "#FDE2FB", "#FFF9FE"]}
+   colors={theme.gradient}
   start={{ x: 0, y: 0 }}
   end={{ x: 0, y: 1 }}
   style={{ flex: 1, alignItems: "center", justifyContent: "space-between", paddingTop: 40, paddingBottom: 20 }}
@@ -55,7 +57,7 @@ export default function App() {
         Login with Mobile Number
       </Text>
 
-      <View className="h-[58px] flex-row items-center border-[1.8px] border-[#CB5CF3] rounded-[14px] bg-white px-[16px]">
+      <View className="h-[58px] flex-row items-center px-[16px] rounded-[14px] bg-white border-[1.8px]" style={{ borderColor: theme.primary }}>
         <Text className="text-[18px] font-bold text-black">+91</Text>
 
         <View className="w-[1px] h-[28px] bg-[#8E8E8E] mx-[12px]" />
@@ -82,7 +84,7 @@ export default function App() {
   }}
 >
         <LinearGradient
-          colors={["#F553E7", "#7B67FF"]}
+          colors={[theme.primary, theme.primary]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={{ height: 56, width: "74%", borderRadius: 15, justifyContent: "center", alignItems: "center", alignSelf: "center", marginTop: 26 }}
@@ -97,14 +99,16 @@ export default function App() {
     <Text className="w-[70%] text-center text-[13px] text-[#222] mb-[10px] leading-[20px]">
   By Continuing, you agree to our{" "}
   <Text
-    className="text-[#7A2BE2] font-bold"
+    className="font-bold"
+    style={{ color: theme.primary }}
     onPress={() => router.push("/terms")}
   >
     Terms
   </Text>
   {" & "}
   <Text
-    className="text-[#7A2BE2] font-bold"
+    className="font-bold"
+    style={{ color: theme.primary }}
     onPress={() => router.push("/privacy")}
   >
     Privacy Policy

@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { useTheme } from "../constants/ThemeContext";
 
 const updates = [
   {
@@ -43,12 +44,14 @@ const updates = [
 ];
 
 export default function Status() {
+  const { theme } = useTheme();
+
   return (
     <LinearGradient
-      colors={["#ffe7f5", "#ffffff", "#f6e5ff"]}
+      colors={theme.gradient}
       style={{ flex: 1, paddingTop: 55, paddingHorizontal: 16 }}
     >
-      <Text className="text-[30px] font-bold text-[#b03dd7] mb-[20px]">Moments</Text>
+      <Text className="text-[30px] font-bold" style={{ color: theme.primary }}>Moments</Text>
 
       <Text className="text-[20px] font-semibold text-[#444] mb-[15px] mt-[10px]">Today</Text>
 
