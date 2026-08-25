@@ -78,7 +78,7 @@ urlpatterns = [
         name="delete_status"
     ),
 
-    # Contact matching
+    # Contact matching & Connect
     path(
         "match-contacts/",
         views.match_contacts,
@@ -88,5 +88,22 @@ urlpatterns = [
         "contacts/match/",
         views.match_contacts,
         name="contacts_match"
+    ),
+    path(
+        "contacts/connect/",
+        views.connect_friend,
+        name="connect_friend"
+    ),
+
+    # One-to-One Chat
+    path(
+        "api/chat/messages/",
+        views.chat_messages_list,
+        name="chat_messages_list"
+    ),
+    path(
+        "api/chat/send/",
+        views.chat_messages_list,
+        name="chat_send"
     ),
 ]

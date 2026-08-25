@@ -6,6 +6,7 @@ import BACKEND_URL from "../config";
 export type ContactItem = {
   id: string;
   name: string;
+  username?: string;
   image: string;
   msg: string;
   time: string;
@@ -57,6 +58,7 @@ export function fetchContacts(owner: string, filter: "all" | "unread" | "pending
 export function createContact(payload: {
   owner_username: string;
   name: string;
+  target_username?: string;
   image?: string;
   msg?: string;
   time?: string;
@@ -66,6 +68,32 @@ export function createContact(payload: {
   is_pending?: boolean;
 }) {
   return request<{ success: boolean; contact: ContactItem }>(`/app/api/contacts/`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+// ── One-to-One Chat Messages ──
+export type ChatMessageItem = {
+  id: string;
+  sender_username: string;
+  receiver_username: string;
+  text: string;
+  created_at: string;
+};
+
+export function fetchChatMessages(user1: string, user2: string) {
+  return request<{ success: boolean; messages: ChatMessageItem[] }>(
+    `/app/api/chat/messages/?user1=${encodeURIComponent(user1)}&user2=${encodeURIComponent(user2)}`
+  );
+}
+
+export function sendChatMessage(payload: {
+  sender_username: string;
+  receiver_username: string;
+  text: string;
+}) {
+  return request<{ success: boolean; message: ChatMessageItem }>(`/app/api/chat/messages/`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
