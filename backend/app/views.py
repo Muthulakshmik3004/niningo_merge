@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import (
+    ChatMessage,
     Contact,
     Group,
     OfficeGeofence,
@@ -414,6 +415,51 @@ def mobile_login(request):
 
 @api_view(["POST"])
 def match_contacts(request):
+    """
+    Match phone contacts from the mobile device against registered
+    Profile phone numbers.
+
+    Both mobile numbers and database numbers are normalized before
+    comparison so values such as:
+        +919994347785
+        919994347785
+        99994347785
+        '+919994347785
+        +91 99994 347785
+    can match the same Indian phone number.
+    """
+
+    def normalize_phone(phone):
+        if not phone:
+            return None
+
+        # Convert to string and remove accidental quotes/whitespace.
+        phone = str(phone).strip()
+        phone = phone.replace("'", "").replace('"', "")
+
+        # Keep digits only for reliable comparison.
+        digits = re.sub(r"\D", "", phone)
+
+        if not digits:
+            return None
+
+        # Indian 10-digit mobile number.
+        if len(digits) == 10:
+            return "+91" + digits
+
+        # Indian number with country code 91 (e.g. 919994347785).
+        if len(digits) == 12 and digits.startswith("91"):
+            return "+" + digits
+
+        # Indian number starting with 0 (e.g. 09994347785).
+        if len(digits) == 11 and digits.startswith("0"):
+            return "+91" + digits[1:]
+
+        # Already an international number.
+        if phone.startswith("+") and len(digits) >= 10:
+            return "+" + digits
+
+        return "+" + digits if len(digits) >= 10 else phone
 
     phone_numbers = request.data.get("phone_numbers", [])
 
@@ -423,46 +469,143 @@ def match_contacts(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    # ---------------------------------------------------------
+    # Normalize phone numbers received from the mobile device
+    # ---------------------------------------------------------
     normalized_numbers = []
 
     for number in phone_numbers:
+        normalized = normalize_phone(number)
 
-        if not number:
-            continue
-
-        number = str(number).strip()
-        number = re.sub(r"[^\d+]", "", number)
-
-        if len(number) == 10 and number.isdigit():
-            number = "+91" + number
-
-        elif number.startswith("0091"):
-            number = "+" + number[2:]
-
-        normalized_numbers.append(number)
+        if normalized:
+            normalized_numbers.append(normalized)
 
     normalized_numbers = list(set(normalized_numbers))
 
-    profiles = Profile.objects(
-        phone_number__in=normalized_numbers
+    print("[Mobile normalized contacts]:", normalized_numbers)
+
+    # ---------------------------------------------------------
+    # Read profiles directly from MongoDB collection.
+    # This avoids MongoEngine throwing FieldDoesNotExist for old
+    # fields like home_location / office_location.
+    # ---------------------------------------------------------
+    collection = Profile._get_collection()
+
+    mongo_profiles = collection.find(
+        {},
+        {
+            "phone_number": 1,
+            "name": 1,
+            "username": 1,
+            "profile_image": 1,
+        },
     )
+
+    current_username = str(
+        request.data.get("username")
+        or request.GET.get("username")
+        or ""
+    ).strip().lower()
 
     friends = []
 
-    for profile in profiles:
-        friends.append(
-            {
-                "name": profile.name or profile.username or "User",
-                "phone_number": profile.phone_number,
-                "username": profile.username or "",
-            }
+    for profile in mongo_profiles:
+        raw_uname = profile.get("username")
+        prof_username = str(raw_uname if raw_uname is not None else "").strip().lower()
+        if current_username and prof_username == current_username:
+            continue
+
+        db_phone = normalize_phone(profile.get("phone_number"))
+
+        print(
+            "[Checking profile]:",
+            prof_username,
+            "| DB:",
+            profile.get("phone_number"),
+            "| Normalized:",
+            db_phone,
         )
+
+        if db_phone and db_phone in normalized_numbers:
+            raw_name = profile.get("name")
+            display_name = str(raw_name) if raw_name else (prof_username or "User")
+            friends.append(
+                {
+                    "name": display_name,
+                    "phone_number": db_phone,
+                    "username": prof_username,
+                    "profile_image": str(profile.get("profile_image") or ""),
+                }
+            )
+
+    print("[Matched registered friends]:", len(friends))
 
     return Response(
         {
             "success": True,
             "friends": friends,
+            "contacts": friends,
         },
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["POST"])
+def connect_friend(request):
+    data = request.data
+    owner_username = str(data.get("owner_username") or data.get("owner") or "").strip().lower()
+    friend_username = str(data.get("friend_username") or data.get("target_username") or "").strip().lower()
+
+    if not owner_username or not friend_username:
+        return Response(
+            {"error": "owner_username and friend_username are required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    owner_prof = Profile.objects(username__iexact=owner_username).first()
+    friend_prof = Profile.objects(username__iexact=friend_username).first()
+
+    owner_name = str(owner_prof.name if (owner_prof and owner_prof.name) else owner_username)
+    friend_name = str(friend_prof.name if (friend_prof and friend_prof.name) else friend_username)
+    owner_img = str(owner_prof.profile_image if owner_prof else "")
+    friend_img = str(friend_prof.profile_image if friend_prof else "")
+
+    c1 = Contact.objects(
+        owner_username=owner_username,
+        target_username__iexact=friend_username,
+    ).first()
+
+    if not c1:
+        c1 = Contact(
+            owner_username=owner_username,
+            name=friend_name,
+            target_username=friend_username,
+            profile_image=friend_img,
+            msg="Connected on Niningo",
+            time_label="Just now",
+            color="#39E600",
+        )
+        c1.save()
+
+    c2 = Contact.objects(
+        owner_username=friend_username,
+        target_username__iexact=owner_username,
+    ).first()
+
+    if not c2:
+        c2 = Contact(
+            owner_username=friend_username,
+            name=owner_name,
+            target_username=owner_username,
+            profile_image=owner_img,
+            msg="Connected on Niningo",
+            time_label="Just now",
+            color="#39E600",
+        )
+        c2.save()
+
+    return Response(
+        {"success": True, "message": "Connected successfully"},
         status=status.HTTP_200_OK,
     )
 
@@ -475,6 +618,7 @@ def _contact_to_dict(contact):
     return {
         "id": str(contact.id),
         "name": contact.name,
+        "username": contact.target_username or "",
         "image": contact.profile_image,
         "msg": contact.msg,
         "time": contact.time_label,
@@ -494,6 +638,7 @@ def contacts_list(request):
 
         owner_username = data.get("owner_username")
         name = data.get("name")
+        target_username = data.get("target_username", "")
 
         if not owner_username or not name:
             return Response(
@@ -503,19 +648,78 @@ def contacts_list(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        contact = Contact(
-            owner_username=owner_username,
-            name=name,
-            profile_image=data.get("image", ""),
-            msg=data.get("msg", ""),
-            time_label=data.get("time", ""),
-            count=int(data.get("count", 0) or 0),
-            color=data.get("color", "#39E600"),
-            is_unread=bool(data.get("is_unread", False)),
-            is_pending=bool(data.get("is_pending", False)),
-        )
+        # Check if contact already exists for owner to avoid duplicates
+        existing_contact = None
+        if target_username:
+            existing_contact = Contact.objects(
+                owner_username=owner_username,
+                target_username__iexact=target_username,
+            ).first()
+
+        if not existing_contact:
+            existing_contact = Contact.objects(
+                owner_username=owner_username,
+                name__iexact=name,
+            ).first()
+
+        if existing_contact:
+            contact = existing_contact
+            if target_username and not contact.target_username:
+                contact.target_username = target_username
+            contact.profile_image = data.get("image", contact.profile_image)
+            contact.msg = data.get("msg", contact.msg)
+            contact.time_label = data.get("time", contact.time_label)
+        else:
+            contact = Contact(
+                owner_username=owner_username,
+                name=name,
+                target_username=target_username,
+                profile_image=data.get("image", ""),
+                msg=data.get("msg", ""),
+                time_label=data.get("time", ""),
+                count=int(data.get("count", 0) or 0),
+                color=data.get("color", "#39E600"),
+                is_unread=bool(data.get("is_unread", False)),
+                is_pending=bool(data.get("is_pending", False)),
+            )
 
         contact.save()
+
+        # Bidirectional connection: If target_username or matching profile exists, also create connection for target user
+        target_prof = None
+        if target_username:
+            target_prof = Profile.objects(username__iexact=target_username).first()
+        if not target_prof:
+            target_prof = Profile.objects(name__iexact=name).first()
+
+        if target_prof and target_prof.username and target_prof.username.lower() != owner_username.lower():
+            owner_prof = Profile.objects(username__iexact=owner_username).first()
+            owner_display_name = owner_prof.name if (owner_prof and owner_prof.name) else owner_username
+
+            t_contact = Contact.objects(
+                owner_username=target_prof.username,
+                target_username__iexact=owner_username,
+            ).first()
+
+            if not t_contact:
+                t_contact = Contact.objects(
+                    owner_username=target_prof.username,
+                    name__iexact=owner_display_name,
+                ).first()
+
+            if not t_contact:
+                t_contact = Contact(
+                    owner_username=target_prof.username,
+                    target_username=owner_username,
+                    name=owner_display_name,
+                    profile_image=owner_prof.profile_image if (owner_prof and owner_prof.profile_image) else "",
+                    msg="Connected on Niningo",
+                    time_label="Just now",
+                    color="#39E600",
+                )
+            else:
+                t_contact.target_username = owner_username
+            t_contact.save()
 
         return Response(
             {
@@ -541,66 +745,6 @@ def contacts_list(request):
         owner_username=owner_username
     )
 
-    if qs.count() == 0:
-
-        seed = [
-            dict(
-                name="Arun",
-                msg="Task Assigned",
-                time_label="11:54 am",
-                count=1,
-                profile_image="https://i.pravatar.cc/150?img=1",
-                color="#39E600",
-                is_unread=True,
-            ),
-            dict(
-                name="Usagi",
-                msg="Task Assigned",
-                time_label="9:55 am",
-                count=1,
-                profile_image="https://i.pravatar.cc/150?img=2",
-                color="#39E600",
-                is_unread=True,
-            ),
-            dict(
-                name="Praveen",
-                msg="Task Assigned",
-                time_label="Yesterday",
-                count=1,
-                profile_image="https://i.pravatar.cc/150?img=3",
-                color="#FF8A00",
-                is_pending=True,
-            ),
-            dict(
-                name="Natasa",
-                msg="Task Assigned",
-                time_label="Yesterday",
-                count=1,
-                profile_image="https://i.pravatar.cc/150?img=4",
-                color="#FF8A00",
-                is_pending=True,
-            ),
-            dict(
-                name="Kuina",
-                msg="Task Assigned",
-                time_label="Yesterday",
-                count=1,
-                profile_image="https://i.pravatar.cc/150?img=5",
-                color="#FF8A00",
-                is_pending=True,
-            ),
-        ]
-
-        for row in seed:
-            Contact(
-                owner_username=owner_username,
-                **row,
-            ).save()
-
-        qs = Contact.objects(
-            owner_username=owner_username
-        )
-
     if filter_type == "unread":
         qs = qs.filter(is_unread=True)
 
@@ -609,12 +753,30 @@ def contacts_list(request):
 
     qs = qs.order_by("-created_at")
 
+    # Deduplicate contacts so each friend appears only once in task list
+    seen_keys = set()
+    deduped_results = []
+    for contact in qs:
+        # Auto-fill missing target_username from Profile DB if not set
+        if not contact.target_username:
+            prof = Profile.objects(name__iexact=contact.name).first()
+            if not prof:
+                prof = Profile.objects(username__iexact=contact.name).first()
+            if prof and prof.username:
+                contact.target_username = prof.username
+                try:
+                    contact.save()
+                except Exception:
+                    pass
+
+        key = (contact.target_username or contact.name or "").strip().lower()
+        if key and key not in seen_keys:
+            seen_keys.add(key)
+            deduped_results.append(_contact_to_dict(contact))
+
     return Response(
         {
-            "results": [
-                _contact_to_dict(contact)
-                for contact in qs
-            ]
+            "results": deduped_results
         },
         status=status.HTTP_200_OK,
     )
@@ -1035,6 +1197,118 @@ def delete_status(request):
         {
             "success": True,
             "message": "Status deleted successfully",
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+# =========================================================
+# Chat Messages API (One-to-One Chat)
+# =========================================================
+
+@api_view(["GET", "POST"])
+def chat_messages_list(request):
+    """
+    POST: Send a new chat message between two users
+    GET: Fetch conversation messages between user1 and user2
+    """
+    if request.method == "POST":
+        data = request.data
+        sender = (data.get("sender_username") or "").strip()
+        receiver = (data.get("receiver_username") or "").strip()
+        text = (data.get("text") or "").strip()
+
+        if not sender or not receiver or not text:
+            return Response(
+                {"error": "sender_username, receiver_username, and text are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        conv_key = "_".join(sorted([sender.lower(), receiver.lower()]))
+
+        msg = ChatMessage(
+            sender_username=sender,
+            receiver_username=receiver,
+            conversation_key=conv_key,
+            text=text,
+            created_at=datetime.utcnow(),
+        )
+        msg.save()
+
+        time_str = datetime.now().strftime("%I:%M %p").lstrip("0").lower()
+
+        # Update last message in sender's contact list
+        receiver_prof = Profile.objects(username__iexact=receiver).first()
+        receiver_display_name = receiver_prof.name if (receiver_prof and receiver_prof.name) else receiver
+
+        c1 = Contact.objects(owner_username=sender, target_username__iexact=receiver).first()
+        if not c1:
+            c1 = Contact.objects(owner_username=sender, name__iexact=receiver_display_name).first()
+        if not c1:
+            c1 = Contact(owner_username=sender, name=receiver_display_name, target_username=receiver)
+        c1.target_username = receiver
+        c1.msg = text
+        c1.time_label = time_str
+        c1.save()
+
+        # Update last message in receiver's contact list
+        sender_prof = Profile.objects(username__iexact=sender).first()
+        sender_display_name = sender_prof.name if (sender_prof and sender_prof.name) else sender
+
+        c2 = Contact.objects(owner_username=receiver, target_username__iexact=sender).first()
+        if not c2:
+            c2 = Contact.objects(owner_username=receiver, name__iexact=sender_display_name).first()
+        if not c2:
+            c2 = Contact(owner_username=receiver, name=sender_display_name, target_username=sender)
+        c2.target_username = sender
+        c2.msg = text
+        c2.time_label = time_str
+        c2.count = (c2.count or 0) + 1
+        c2.is_unread = True
+        c2.save()
+
+        return Response(
+            {
+                "success": True,
+                "message": {
+                    "id": str(msg.id),
+                    "sender_username": msg.sender_username,
+                    "receiver_username": msg.receiver_username,
+                    "text": msg.text,
+                    "created_at": msg.created_at.isoformat(),
+                },
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    # GET method
+    user1 = (request.GET.get("user1") or "").lower().strip()
+    user2 = (request.GET.get("user2") or "").lower().strip()
+
+    if not user1 or not user2:
+        return Response(
+            {"error": "user1 and user2 query params are required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    conv_key = "_".join(sorted([user1, user2]))
+    messages = ChatMessage.objects(conversation_key=conv_key).order_by("created_at")
+
+    messages_data = [
+        {
+            "id": str(m.id),
+            "sender_username": m.sender_username,
+            "receiver_username": m.receiver_username,
+            "text": m.text,
+            "created_at": m.created_at.isoformat() if m.created_at else "",
+        }
+        for m in messages
+    ]
+
+    return Response(
+        {
+            "success": True,
+            "messages": messages_data,
         },
         status=status.HTTP_200_OK,
     )

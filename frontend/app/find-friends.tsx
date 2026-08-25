@@ -14,6 +14,8 @@ import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import { router } from "expo-router";
 
 import BACKEND_URL from "../config";
+import { getUsername } from "../services/session";
+import { createContact, fetchContacts } from "../services/api";
 
 // Safely load expo-contacts (not available in standard Expo Go)
 let Contacts: any = null;
@@ -27,12 +29,29 @@ type Friend = {
     name: string;
     phone_number: string;
     username?: string;
+    profile_image?: string;
 };
 
 export default function FindFriendsScreen() {
     const [friends, setFriends] = useState<Friend[]>([]);
+    const [connectedMap, setConnectedMap] = useState<Record<string, boolean>>({});
     const [loading, setLoading] = useState(false);
     const [searched, setSearched] = useState(false);
+
+    const loadExistingContacts = async () => {
+        try {
+            const owner = await getUsername();
+            if (!owner) return;
+            const res = await fetchContacts(owner, "all");
+            const map: Record<string, boolean> = {};
+            (res.results || []).forEach((c) => {
+                if (c.name) map[c.name.toLowerCase()] = true;
+            });
+            setConnectedMap(map);
+        } catch (e) {
+            console.warn("Could not load existing contacts:", e);
+        }
+    };
 
     const findFriends = async () => {
         // Guard: expo-contacts not available (standard Expo Go)
@@ -47,6 +66,9 @@ export default function FindFriendsScreen() {
         try {
             setLoading(true);
             setSearched(false);
+
+            // Fetch existing contacts list so we know who is already connected
+            await loadExistingContacts();
 
             // ── 1. CHECK PERMISSION (don't ask again if already granted) ──
             const { status: existingStatus } = await Contacts.getPermissionsAsync();
@@ -93,10 +115,14 @@ export default function FindFriendsScreen() {
             }
 
             // ── 6. SEND TO DJANGO ──
+            const loggedUser = await getUsername();
             const response = await fetch(`${BACKEND_URL}/app/contacts/match/`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ phone_numbers: phoneNumbers }),
+                body: JSON.stringify({
+                    phone_numbers: phoneNumbers,
+                    username: loggedUser || "",
+                }),
             });
 
             const result = await response.json();
@@ -106,14 +132,50 @@ export default function FindFriendsScreen() {
                 return;
             }
 
-            // ── 7. SHOW RESULTS ──
-            setFriends(result.friends || []);
+            // ── 7. SHOW RESULTS (EXCLUDE SELF) ──
+            const allMatched = result.friends || result.contacts || [];
+            const filteredMatched = allMatched.filter(
+                (f: any) =>
+                    (f.username || "").trim().toLowerCase() !==
+                    (loggedUser || "").trim().toLowerCase()
+            );
+            setFriends(filteredMatched);
             setSearched(true);
         } catch (err: any) {
             console.error("Find friends error:", err);
             Alert.alert("Error", "Something went wrong. Please try again.");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleConnect = async (friend: Friend) => {
+        const displayName = friend.name || friend.username || "Niningo User";
+        const key = displayName.toLowerCase();
+
+        // Optimistically change button to [Message] immediately
+        setConnectedMap((prev) => ({ ...prev, [key]: true }));
+
+        try {
+            const owner = await getUsername();
+            if (!owner) {
+                Alert.alert("Login Required", "Please log in first to connect with friends.");
+                setConnectedMap((prev) => ({ ...prev, [key]: false }));
+                return;
+            }
+
+            await createContact({
+                owner_username: owner,
+                name: displayName,
+                target_username: friend.username || "",
+                image: friend.profile_image || "",
+                msg: "Connected on Niningo",
+                time: "Just now",
+            });
+        } catch (err: any) {
+            console.error("Connect error:", err);
+            setConnectedMap((prev) => ({ ...prev, [key]: false }));
+            Alert.alert("Error", "Could not connect with user. Please try again.");
         }
     };
 
@@ -289,19 +351,47 @@ export default function FindFriendsScreen() {
                                                 </Text>
                                             </View>
 
-                                            {/* Connect Button */}
-                                            <TouchableOpacity
-                                                style={{
-                                                    backgroundColor: "#7A2BE2",
-                                                    paddingHorizontal: 16,
-                                                    paddingVertical: 8,
-                                                    borderRadius: 15,
-                                                }}
-                                            >
-                                                <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 13 }}>
-                                                    Connect
-                                                </Text>
-                                            </TouchableOpacity>
+                                            {/* Connect / Message Button */}
+                                            {connectedMap[(item.name || item.username || "").toLowerCase()] ||
+                                                (item.username && connectedMap[item.username.toLowerCase()]) ? (
+                                                <TouchableOpacity
+                                                    onPress={() => router.push({
+                                                        pathname: "/chat",
+                                                        params: {
+                                                            username: item.username || item.name,
+                                                            name: item.name || item.username,
+                                                            image: item.profile_image || "",
+                                                        }
+                                                    })}
+                                                    style={{
+                                                        backgroundColor: "#25D366",
+                                                        paddingHorizontal: 14,
+                                                        paddingVertical: 8,
+                                                        borderRadius: 15,
+                                                        flexDirection: "row",
+                                                        alignItems: "center",
+                                                    }}
+                                                >
+                                                    <Ionicons name="chatbubble-ellipses" size={14} color="#fff" style={{ marginRight: 5 }} />
+                                                    <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 13 }}>
+                                                        Message
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ) : (
+                                                <TouchableOpacity
+                                                    onPress={() => handleConnect(item)}
+                                                    style={{
+                                                        backgroundColor: "#7A2BE2",
+                                                        paddingHorizontal: 16,
+                                                        paddingVertical: 8,
+                                                        borderRadius: 15,
+                                                    }}
+                                                >
+                                                    <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 13 }}>
+                                                        Connect
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            )}
                                         </View>
                                     )}
                                 />

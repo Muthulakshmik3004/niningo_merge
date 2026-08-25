@@ -13,6 +13,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 
 import BACKEND_URL from "../config";
+import { saveSession } from "../services/session";
 
 export default function App() {
   const [mobile, setMobile] = useState("");
@@ -63,6 +64,13 @@ export default function App() {
         return;
       }
 
+
+      // ------------------------------------------------
+      // Save session if username returned
+      // ------------------------------------------------
+      if (data.username) {
+        await saveSession({ username: data.username });
+      }
 
       // ------------------------------------------------
       // Decide which screen should open

@@ -57,6 +57,7 @@ class Profile(Document):
     meta = {
         "collection": "profiles",
         "indexes": ["phone_number", "username"],
+        "strict": False,
     }
 
 
@@ -64,6 +65,7 @@ class Profile(Document):
 class Contact(Document):
     # owner_username = whose contact/task list this row belongs to (the logged-in user)
     owner_username = StringField(required=True, max_length=50)
+    target_username = StringField(default="")  # the connected friend's username
 
     name = StringField(required=True, max_length=100)
     profile_image = StringField(default="")
@@ -80,7 +82,7 @@ class Contact(Document):
 
     meta = {
         "collection": "contacts",
-        "indexes": ["owner_username", "is_unread", "is_pending"],
+        "indexes": ["owner_username", "target_username", "is_unread", "is_pending"],
     }
 
 
@@ -126,3 +128,20 @@ class StatusUpdate(Document):
         "indexes": ["username", "-created_at"],
         "ordering": ["-created_at"],
     }
+
+
+# ── One-to-One Chat Messages ──
+class ChatMessage(Document):
+    sender_username = StringField(required=True, max_length=50)
+    receiver_username = StringField(required=True, max_length=50)
+    conversation_key = StringField(required=True, max_length=110)
+    text = StringField(required=True)
+    is_read = BooleanField(default=False)
+    created_at = DateTimeField(default=datetime.utcnow)
+
+    meta = {
+        "collection": "chat_messages",
+        "indexes": ["conversation_key", "sender_username", "receiver_username", "-created_at"],
+        "ordering": ["created_at"],
+    }
+
