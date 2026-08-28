@@ -18,7 +18,6 @@ import BACKEND_URL from "../config";
 import { getUsername } from "../services/session";
 import { createContact, fetchContacts } from "../services/api";
 
-// Safely load expo-contacts (not available in standard Expo Go)
 let Contacts: any = null;
 try {
     Contacts = require("expo-contacts");
@@ -56,7 +55,6 @@ export default function FindFriendsScreen() {
     };
 
     const findFriends = async () => {
-        // Guard: expo-contacts not available (standard Expo Go)
         if (!Contacts || typeof Contacts.getPermissionsAsync !== "function") {
             Alert.alert(
                 "Not Supported",
@@ -69,21 +67,17 @@ export default function FindFriendsScreen() {
             setLoading(true);
             setSearched(false);
 
-            // Fetch existing contacts list so we know who is already connected
             await loadExistingContacts();
 
-            // ── 1. CHECK PERMISSION (don't ask again if already granted) ──
             const { status: existingStatus } = await Contacts.getPermissionsAsync();
             let status = existingStatus;
 
-            // ── 2. ASK ONLY IF NOT ALREADY GRANTED ──
             if (status !== "granted") {
                 const { status: requestedStatus } =
                     await Contacts.requestPermissionsAsync();
                 status = requestedStatus;
             }
 
-            // ── 3. USER DENIED ──
             if (status !== "granted") {
                 Alert.alert(
                     "Contacts Permission",
@@ -92,14 +86,12 @@ export default function FindFriendsScreen() {
                 return;
             }
 
-            // ── 4. READ CONTACTS ──
             const fields = Contacts.Fields
                 ? [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers]
                 : undefined;
 
             const { data } = await Contacts.getContactsAsync({ fields });
 
-            // ── 5. EXTRACT PHONE NUMBERS ──
             const phoneNumbers: string[] = [];
             if (data && data.length > 0) {
                 data.forEach((contact: any) => {
@@ -116,7 +108,6 @@ export default function FindFriendsScreen() {
                 return;
             }
 
-            // ── 6. SEND TO DJANGO ──
             const loggedUser = await getUsername();
             const response = await fetch(`${BACKEND_URL}/app/contacts/match/`, {
                 method: "POST",
@@ -134,7 +125,6 @@ export default function FindFriendsScreen() {
                 return;
             }
 
-            // ── 7. SHOW RESULTS (EXCLUDE SELF) ──
             const allMatched = result.friends || result.contacts || [];
             const filteredMatched = allMatched.filter(
                 (f: any) =>
@@ -155,7 +145,6 @@ export default function FindFriendsScreen() {
         const displayName = friend.name || friend.username || "Niningo User";
         const key = displayName.toLowerCase();
 
-        // Optimistically change button to [Message] immediately
         setConnectedMap((prev) => ({ ...prev, [key]: true }));
 
         try {
@@ -187,7 +176,6 @@ export default function FindFriendsScreen() {
                 colors={theme.gradient}
                 style={{ flex: 1 }}
             >
-                {/* ── HEADER ── */}
                 <View
                     style={{
                         flexDirection: "row",
@@ -210,9 +198,7 @@ export default function FindFriendsScreen() {
                     </Text>
                 </View>
 
-                {/* ── BODY ── */}
                 <View style={{ flex: 1, paddingHorizontal: 20 }}>
-                    {/* Illustration / description */}
                     {!searched && !loading && (
                         <View style={{ alignItems: "center", marginTop: 60, marginBottom: 40 }}>
                             <View
@@ -255,7 +241,6 @@ export default function FindFriendsScreen() {
                         </View>
                     )}
 
-                    {/* Loading */}
                     {loading && (
                         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
                             <ActivityIndicator size="large" color={theme.primary} />
@@ -265,7 +250,6 @@ export default function FindFriendsScreen() {
                         </View>
                     )}
 
-                    {/* Results */}
                     {searched && !loading && (
                         <>
                             <Text
@@ -329,7 +313,6 @@ export default function FindFriendsScreen() {
                                                 elevation: 3,
                                             }}
                                         >
-                                            {/* Avatar */}
                                             <View
                                                 style={{
                                                     width: 50,
@@ -343,7 +326,6 @@ export default function FindFriendsScreen() {
                                                 <FontAwesome name="user" size={24} color={theme.primary} />
                                             </View>
 
-                                            {/* Info */}
                                             <View style={{ flex: 1, marginLeft: 14 }}>
                                                 <Text style={{ fontSize: 17, fontWeight: "bold", color: "#222" }}>
                                                     {item.name || "Niningo User"}
@@ -353,7 +335,6 @@ export default function FindFriendsScreen() {
                                                 </Text>
                                             </View>
 
-                                            {/* Connect / Message Button */}
                                             {connectedMap[(item.name || item.username || "").toLowerCase()] ||
                                                 (item.username && connectedMap[item.username.toLowerCase()]) ? (
                                                 <TouchableOpacity
@@ -402,7 +383,6 @@ export default function FindFriendsScreen() {
                     )}
                 </View>
 
-                {/* ── FIND FRIENDS BUTTON ── */}
                 {!loading && (
                     <View style={{ paddingHorizontal: 20, paddingBottom: 30, paddingTop: 10 }}>
                         <TouchableOpacity onPress={findFriends} activeOpacity={0.85}>

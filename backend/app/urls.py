@@ -1,6 +1,6 @@
 from django.urls import path
 from . import views
-
+from .views import ProfileView
 
 urlpatterns = [
     # Mobile login
@@ -91,6 +91,18 @@ urlpatterns = [
         "contacts/connect/",
         views.connect_friend,
         name="connect_friend"
+    ),
+
+    # Spark / Daily Mission Progress
+    path(
+        "api/spark/",
+        views.spark_progress,
+        name="spark_progress"
+    ),
+    path(
+        "api/spark/delete-task/",
+        views.delete_spark_task,
+        name="delete_spark_task"
     ),
 
     # One-to-One Chat

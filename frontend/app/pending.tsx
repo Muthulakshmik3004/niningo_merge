@@ -140,7 +140,12 @@ export default function PendingScreen() {
             className="items-center"
             onPress={() => router.push("/spark")}
           >
-            <Text className="text-[24px]">❤️‍🔥</Text>
+            {/* <Text className="text-[24px]">❤️‍🔥</Text> */}
+            <Image
+  source={require("../assets/images/ninigo_burning.gif")}
+  className="w-[30px] h-[30px]"
+  resizeMode="contain"
+/>
 
             <Text className="text-[13px] font-bold text-[#FF7B00]">
               {completedDaysCount}{" "}

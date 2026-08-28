@@ -1,7 +1,7 @@
 import mongoengine
 from mongoengine import (
     Document, EmbeddedDocument, StringField, FloatField, BooleanField,
-    DateTimeField, IntField, ListField, EmbeddedDocumentField,
+    DateTimeField, IntField, ListField, EmbeddedDocumentField, DictField,
 )
 from datetime import datetime, timedelta
 
@@ -36,44 +36,74 @@ class Profile(Document):
         sparse=True,
         max_length=50
     )
+
     bio = StringField(max_length=500, default="")
     language = StringField(max_length=50, default="")
     gender = StringField(max_length=20, default="")
-    theme = StringField(max_length=20, default="purple")
+
     profile_image = StringField(required=False, null=True)
 
-    # ── Onboarding flags ──
+    # ── Theme ────────────────────────────────────────────────
+    #
+    # Existing MongoDB Profile documents contain a "theme"
+    # field. This field was missing from the MongoEngine model,
+    # which caused:
+    #
+    # FieldDoesNotExist:
+    # The fields "{'theme'}" do not exist on the document "Profile"
+    #
+    theme = StringField(
+        max_length=50,
+        default="light",
+        null=True,
+    )
+
+    # ── Onboarding flags ─────────────────────────────────────
     profile_completed = BooleanField(default=False)
     location_completed = BooleanField(default=False)
 
-    # ── Location fields (same collection) ──
-    home_address = mongoengine.StringField(default="")
-    home_latitude = mongoengine.FloatField(null=True)
-    home_longitude = mongoengine.FloatField(null=True)
-    office_address = mongoengine.StringField(default="")
-    office_latitude = mongoengine.FloatField(null=True)
-    office_longitude = mongoengine.FloatField(null=True)
-    location_updated_at = mongoengine.DateTimeField(null=True)
+    # ── Location fields ──────────────────────────────────────
+    home_address = StringField(default="")
+    home_latitude = FloatField(null=True)
+    home_longitude = FloatField(null=True)
+
+    office_address = StringField(default="")
+    office_latitude = FloatField(null=True)
+    office_longitude = FloatField(null=True)
+
+    location_updated_at = DateTimeField(null=True)
 
     meta = {
         "collection": "profiles",
-        "indexes": ["phone_number", "username"],
+        "indexes": [
+            "phone_number",
+            "username",
+        ],
+        # allows fields present in Mongo docs but not (yet) on the model
+        # without raising FieldDoesNotExist
         "strict": False,
     }
 
 
-# ── Contact / Task list (All, Unread, Pending tabs) ──
+# ============================================================
+# CONTACT / TASK LIST
+# All / Unread / Pending tabs
+# ============================================================
+
 class Contact(Document):
-    # owner_username = whose contact/task list this row belongs to (the logged-in user)
+
+    # The logged-in user's username (whose list this row belongs to)
     owner_username = StringField(required=True, max_length=50)
-    target_username = StringField(default="")  # the connected friend's username
+
+    # The connected friend's username
+    target_username = StringField(default="")
 
     name = StringField(required=True, max_length=100)
     profile_image = StringField(default="")
-    msg = StringField(default="")             # last message / task text
-    time_label = StringField(default="")       # display string e.g. "11:54 am", "Yesterday"
-    count = IntField(default=0)                # unread badge count
-    color = StringField(default="#39E600")     # badge color
+    msg = StringField(default="")           # last message / task text
+    time_label = StringField(default="")     # e.g. "11:54 am", "Yesterday"
+    count = IntField(default=0)              # unread badge count
+    color = StringField(default="#39E600")   # badge color
 
     is_unread = BooleanField(default=False)
     is_pending = BooleanField(default=False)
@@ -83,12 +113,21 @@ class Contact(Document):
 
     meta = {
         "collection": "contacts",
-        "indexes": ["owner_username", "target_username", "is_unread", "is_pending"],
+        "indexes": [
+            "owner_username",
+            "target_username",
+            "is_unread",
+            "is_pending",
+        ],
     }
 
 
-# ── Groups tab ──
+# ============================================================
+# GROUPS
+# ============================================================
+
 class Group(Document):
+
     owner_username = StringField(required=True, max_length=50)
 
     name = StringField(required=True, max_length=100)
@@ -103,20 +142,29 @@ class Group(Document):
     }
 
 
-# ── WhatsApp-style Status / Moments ──
+# ============================================================
+# STATUS VIEWER
+# ============================================================
+
 class StatusViewer(EmbeddedDocument):
+
     viewer_username = StringField(required=True, max_length=50)
     viewer_name = StringField(default="")
     viewer_image = StringField(default="")
     viewed_at = DateTimeField(default=datetime.utcnow)
 
 
-class StatusUpdate(Document):
-    username = StringField(required=True, max_length=50)   # who posted the status
-    name = StringField(default="")
-    profile_image = StringField(default="")                # poster's avatar (ring photo)
+# ============================================================
+# STATUS / MOMENTS
+# ============================================================
 
-    content_image = StringField(default="")                # the status photo/image itself
+class StatusUpdate(Document):
+
+    username = StringField(required=True, max_length=50)  # who posted
+    name = StringField(default="")
+    profile_image = StringField(default="")  # poster's avatar (ring photo)
+
+    content_image = StringField(default="")  # the status photo itself
     caption = StringField(default="")
 
     created_at = DateTimeField(default=datetime.utcnow)
@@ -126,12 +174,52 @@ class StatusUpdate(Document):
 
     meta = {
         "collection": "status_updates",
-        "indexes": ["username", "-created_at"],
+        "indexes": [
+            "username",
+            "-created_at",
+        ],
         "ordering": ["-created_at"],
     }
 
 
-# ── One-to-One Chat Messages ──
+# ============================================================
+# SPARK / DAILY MISSION PROGRESS
+# ============================================================
+
+class SparkProgress(Document):
+
+    username = StringField(required=True, max_length=50)
+
+    # Calendar date for this Spark record, e.g. "2026-08-27"
+    date = StringField(required=True, max_length=10)
+
+    # Mission completion/photo data, e.g.:
+    # {
+    #     "Early Wake-up": {"completed": True, "photo": "..."},
+    #     "Hydration": {"completed": True, "photo": "..."}
+    # }
+    tasks = DictField(default=dict)
+
+    created_at = DateTimeField(default=datetime.utcnow)
+    updated_at = DateTimeField(default=datetime.utcnow)
+
+    meta = {
+        "collection": "spark_progress",
+        "indexes": [
+            {
+                "fields": ["username", "date"],
+                "unique": True
+            },
+            "username",
+            "date",
+        ],
+    }
+
+
+# ============================================================
+# ONE-TO-ONE CHAT MESSAGES
+# ============================================================
+
 class ChatMessage(Document):
     sender_username = StringField(required=True, max_length=50)
     receiver_username = StringField(required=True, max_length=50)
@@ -142,12 +230,20 @@ class ChatMessage(Document):
 
     meta = {
         "collection": "chat_messages",
-        "indexes": ["conversation_key", "sender_username", "receiver_username", "-created_at"],
+        "indexes": [
+            "conversation_key",
+            "sender_username",
+            "receiver_username",
+            "-created_at",
+        ],
         "ordering": ["created_at"],
     }
 
 
-# ── Leaderboard / Ranking ──
+# ============================================================
+# LEADERBOARD / RANKING
+# ============================================================
+
 class Ranking(Document):
     username = StringField(required=True, max_length=50)
     display_name = StringField(max_length=100, default="")

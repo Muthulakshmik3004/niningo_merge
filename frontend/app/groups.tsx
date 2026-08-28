@@ -113,20 +113,24 @@ export default function GroupsScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: theme.gradient[0] }}
-      edges={["top", "left", "right", "bottom"]}
+      style={{ flex: 1 }}
+      edges={["left", "right", "bottom"]}
     >
       <LinearGradient
         colors={theme.gradient}
         style={{
           flex: 1,
+          paddingTop: 38,
           paddingHorizontal: 15,
         }}
       >
         {/* Header */}
 
         <View className="flex-row justify-between items-center mb-[15px]">
-          <Text className="text-[34px] font-bold" style={{ color: theme.primary }}>
+          <Text
+            className="text-[34px] font-bold"
+            style={{ color: theme.primary }}
+          >
             Task
           </Text>
 
@@ -134,9 +138,11 @@ export default function GroupsScreen() {
             className="items-center"
             onPress={() => router.push("/spark")}
           >
-            <Text className="text-[24px]">
-              ❤️‍🔥
-            </Text>
+            <Image
+              source={require("../assets/images/ninigo_burning.gif")}
+              className="w-[30px] h-[30px]"
+              resizeMode="contain"
+            />
 
             <Text className="text-[13px] font-bold text-[#FF7B00]">
               {completedDaysCount}{" "}
@@ -183,16 +189,20 @@ export default function GroupsScreen() {
                 if (item === "Pending") {
                   router.push("/pending");
                 }
+
+                if (item === "Groups") {
+                  router.push("/groups");
+                }
               }}
-              style={{
-                backgroundColor: selected === item ? theme.primary : "#FFFFFF",
-                borderColor: theme.primary,
-              }}
-              className="px-[18px] py-[7px] rounded-[18px] border"
+              className={`px-[18px] py-[7px] rounded-[18px] border border-[#B37BD8] ${
+                selected === item
+                  ? "bg-[#F1C2F7]"
+                  : "bg-[#FFF]"
+              }`}
             >
               <Text
                 style={{
-                  color: selected === item ? "#FFF" : theme.primary,
+                  color: "#000",
                   fontWeight: "600",
                 }}
               >
@@ -208,7 +218,7 @@ export default function GroupsScreen() {
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator
               size="large"
-              color="#B84CE8"
+              color={theme.primary}
             />
 
             <Text className="mt-[12px] text-[#7A2BE2]">
@@ -233,16 +243,10 @@ export default function GroupsScreen() {
             }
             renderItem={({ item }) => (
               <TouchableOpacity className="flex-row items-center py-[12px]">
-                {item.image ? (
-                  <Image
-                    source={{ uri: item.image }}
-                    className="w-[60px] h-[60px] rounded-[30px]"
-                  />
-                ) : (
-                  <View className="w-[60px] h-[60px] rounded-[30px] bg-[#F1C2F7] justify-center items-center">
-                    <FontAwesome name="users" size={24} color="#7A2BE2" />
-                  </View>
-                )}
+                <Image
+                  source={{ uri: item.image }}
+                  className="w-[60px] h-[60px] rounded-[30px]"
+                />
 
                 <View className="flex-1 ml-[12px]">
                   <Text className="text-[22px] font-bold text-[#222]">
@@ -285,7 +289,7 @@ export default function GroupsScreen() {
 
         {/* Bottom Navigation */}
 
-        <BottomFooter activeTab="all" />
+        <BottomFooter activeTab="groups" />
       </LinearGradient>
     </SafeAreaView>
   );

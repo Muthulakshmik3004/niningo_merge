@@ -13,9 +13,10 @@ from .models import (
     Group,
     OfficeGeofence,
     Profile,
-    Ranking,
     StatusUpdate,
     StatusViewer,
+    SparkProgress,
+    Ranking,
 )
 
 
@@ -372,7 +373,6 @@ class ProfileView(APIView):
             },
             status=status.HTTP_200_OK,
         )
-
 
     def post(self, request):
         phone_number = request.data.get("phone_number")
@@ -1309,6 +1309,234 @@ def delete_status(request):
         },
         status=status.HTTP_200_OK,
     )
+
+
+# =========================================================
+# Spark / Daily Mission Progress
+# =========================================================
+
+def _spark_to_dict(spark):
+    return {
+        "id": str(spark.id),
+        "username": spark.username,
+        "date": spark.date,
+        "tasks": spark.tasks,
+        "created_at": spark.created_at.isoformat(),
+        "updated_at": spark.updated_at.isoformat(),
+    }
+
+
+@api_view(["GET", "POST"])
+def spark_progress(request):
+
+    # -----------------------------------------------------
+    # GET
+    # Get all Spark progress for a user
+    #
+    # Example:
+    # /app/spark/?username=Aishu
+    #
+    # Or specific date:
+    # /app/spark/?username=Aishu&date=2026-08-24
+    # -----------------------------------------------------
+    if request.method == "GET":
+
+        username = request.GET.get("username", "")
+        date = request.GET.get("date", "")
+
+        if not username:
+            return Response(
+                {"error": "username query param is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            if date:
+                spark = SparkProgress.objects(
+                    username=username,
+                    date=date,
+                ).first()
+
+                if not spark:
+                    return Response(
+                        {
+                            "success": True,
+                            "exists": False,
+                            "date": date,
+                            "tasks": {},
+                        },
+                        status=status.HTTP_200_OK,
+                    )
+
+                return Response(
+                    {
+                        "success": True,
+                        "exists": True,
+                        "spark": _spark_to_dict(spark),
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+            # Get ALL previous dates
+            sparks = SparkProgress.objects(
+                username=username
+            ).order_by("date")
+
+            return Response(
+                {
+                    "success": True,
+                    "results": [
+                        _spark_to_dict(spark)
+                        for spark in sparks
+                    ],
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    # -----------------------------------------------------
+    # POST
+    # Save / update one mission for one date
+    #
+    # Example body:
+    #
+    # {
+    #   "username": "Aishu",
+    #   "date": "2026-08-24",
+    #   "task": "Hydration",
+    #   "completed": true,
+    #   "photo": "image-uri"
+    # }
+    # -----------------------------------------------------
+    data = request.data
+
+    username = data.get("username")
+    date = data.get("date")
+    task = data.get("task")
+
+    if not username:
+        return Response(
+            {"error": "username is required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not date:
+        return Response(
+            {"error": "date is required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not task:
+        return Response(
+            {"error": "task is required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        # Find existing record for this user + date
+        spark = SparkProgress.objects(
+            username=username,
+            date=date,
+        ).first()
+
+        # If this date doesn't have a record yet,
+        # create one.
+        if not spark:
+            spark = SparkProgress(
+                username=username,
+                date=date,
+                tasks={},
+            )
+
+        completed = data.get("completed", True)
+        photo = data.get("photo", "")
+
+        # Save this mission
+        spark.tasks[task] = {
+            "completed": bool(completed),
+            "photo": photo or "",
+        }
+
+        spark.updated_at = datetime.utcnow()
+        spark.save()
+
+        return Response(
+            {
+                "success": True,
+                "message": "Spark progress saved successfully",
+                "spark": _spark_to_dict(spark),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+# =========================================================
+# Spark - Delete / Reset One Mission
+# =========================================================
+
+@api_view(["DELETE"])
+def delete_spark_task(request):
+
+    username = request.GET.get("username", "")
+    date = request.GET.get("date", "")
+    task = request.GET.get("task", "")
+
+    if not username or not date or not task:
+        return Response(
+            {
+                "error": (
+                    "username, date and task "
+                    "are required"
+                )
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        spark = SparkProgress.objects(
+            username=username,
+            date=date,
+        ).first()
+
+        if not spark:
+            return Response(
+                {
+                    "error": "Spark progress not found"
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if task in spark.tasks:
+            del spark.tasks[task]
+
+            spark.updated_at = datetime.utcnow()
+            spark.save()
+
+        return Response(
+            {
+                "success": True,
+                "message": "Spark task deleted successfully",
+                "spark": _spark_to_dict(spark),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 # =========================================================
