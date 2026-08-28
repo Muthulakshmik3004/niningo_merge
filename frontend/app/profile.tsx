@@ -5,7 +5,7 @@ import { FontAwesome } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { Picker } from "@react-native-picker/picker";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import BACKEND_URL from "../config";
 import { saveSession } from "../services/session";
+import { setCurrentProfile } from "../constants/ProfileStore";
 
 export default function ProfileScreen() {
   // ============================================================
@@ -40,6 +41,43 @@ export default function ProfileScreen() {
   const [gender, setGender] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // ============================================================
+  // FETCH EXISTING PROFILE
+  // ============================================================
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!phone) return;
+      try {
+        setLoading(true);
+        const response = await fetch(
+          `${BACKEND_URL}/app/profile/?phone_number=${encodeURIComponent(phone)}`
+        );
+        const data = await response.json();
+        
+        if (response.ok && data.profile) {
+          const p = data.profile;
+          // Fill existing data (excluding default generic names like the phone number)
+          if (p.name && p.name !== p.phone_number && p.name !== p.username) {
+            setName(p.name);
+          } else if (p.name && p.name !== "User") {
+            setName(p.name);
+          }
+          if (p.username && p.username !== p.phone_number) setUsername(p.username);
+          if (p.bio) setBio(p.bio);
+          if (p.language) setLanguage(p.language);
+          if (p.gender) setGender(p.gender);
+          if (p.profile_image) setImage(p.profile_image);
+        }
+      } catch (error) {
+        console.error("Failed to fetch existing profile:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [phone]);
 
   // ============================================================
   // PICK PROFILE IMAGE
@@ -94,6 +132,21 @@ export default function ProfileScreen() {
       return;
     }
 
+    if (!bio.trim()) {
+      alert("Bio is required");
+      return;
+    }
+
+    if (!language) {
+      alert("Language is required");
+      return;
+    }
+
+    if (!gender) {
+      alert("Gender is required");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -141,6 +194,16 @@ export default function ProfileScreen() {
           username: cleanUsername,
           name: name.trim(),
           profileImage: image,
+        });
+
+        await setCurrentProfile({
+          name: name.trim(),
+          username: cleanUsername,
+          bio: bio.trim(),
+          language: language,
+          gender: gender,
+          theme: "purple",
+          profile_image: image || null,
         });
 
         // Go to location page

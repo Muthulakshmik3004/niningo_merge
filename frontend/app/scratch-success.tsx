@@ -10,6 +10,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import { useTheme } from "../constants/ThemeContext";
 
 
 // ============================================================
@@ -17,247 +19,201 @@ import { router } from "expo-router";
 // ============================================================
 
 export default function ScratchSuccessScreen() {
+  const { theme } = useTheme();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.gradient[0] }} edges={["top", "left", "right", "bottom"]}>
+      <LinearGradient colors={theme.gradient} style={{ flex: 1 }}>
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor="transparent"
+          translucent
+        />
 
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor="#C0005B"
-      />
+        <View style={{ flex: 1 }}>
 
-
-      <View style={styles.container}>
-
-
-        {/* ==================================================
+          {/* ==================================================
             BACK BUTTON
         ================================================== */}
 
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-        >
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="arrow-back"
+              size={32}
+              color={theme.primary}
+            />
+          </TouchableOpacity>
 
-          <Ionicons
-            name="arrow-back"
-            size={38}
-            color="#FFFFFF"
-          />
-
-        </TouchableOpacity>
-
-
-        {/* ==================================================
+          {/* ==================================================
             CONTENT
         ================================================== */}
 
-        <View style={styles.content}>
+          <View style={styles.content}>
 
-
-          {/* ==================================================
+            {/* ==================================================
               GREEN CHECK
           ================================================== */}
 
-          <View style={styles.successCircle}>
+            <View style={styles.successCircle}>
+              <Ionicons
+                name="checkmark"
+                size={70}
+                color="#FFFFFF"
+              />
+            </View>
 
-            <Ionicons
-              name="checkmark"
-              size={70}
-              color="#FFFFFF"
-            />
-
-          </View>
-
-
-          {/* ==================================================
+            {/* ==================================================
               TITLE
           ================================================== */}
 
-          <Text style={styles.title}>
-            Task Completed!
-          </Text>
+            <Text style={[styles.title, { color: theme.primary }]}>
+              Task Completed!
+            </Text>
 
-
-          {/* ==================================================
+            {/* ==================================================
               GREETING
           ================================================== */}
 
-          <Text style={styles.greeting}>
-            Great Job, Arisu! 🎉
-          </Text>
+            <Text style={[styles.greeting, { color: "#333333" }]}>
+              Great Job, Arisu! 🎉
+            </Text>
 
-
-          {/* ==================================================
+            {/* ==================================================
               COUPON MESSAGE
           ================================================== */}
 
-          <Text style={styles.earnedText}>
-            You earned a coupon
-          </Text>
+            <Text style={[styles.earnedText, { color: "#555555" }]}>
+              You earned a coupon
+            </Text>
 
-
-          {/* ==================================================
+            {/* ==================================================
               COUPON CARD
           ================================================== */}
 
-          <View style={styles.couponCard}>
+            <View style={[styles.couponCard, { backgroundColor: theme.primary }]}>
 
-
-            {/* Background */}
-
-            <View
-              style={styles.couponBackground}
-            />
-
-
-            {/* Soft circles */}
-
-            <View
-              style={styles.circleOne}
-            />
-
-            <View
-              style={styles.circleTwo}
-            />
-
-
-            {/* Pattern squares */}
-
-            <View
-              style={styles.pattern}
-            >
-
-              {Array.from({
-                length: 30,
-              }).map((_, index) => {
-
-                const positions = [
-                  [12, 20],
-                  [35, 16],
-                  [58, 25],
-                  [82, 15],
-                  [110, 25],
-                  [137, 17],
-
-                  [18, 43],
-                  [45, 38],
-                  [72, 48],
-                  [103, 42],
-                  [128, 51],
-
-                  [12, 69],
-                  [38, 62],
-                  [63, 72],
-                  [91, 66],
-                  [118, 75],
-                  [145, 66],
-
-                  [20, 94],
-                  [48, 88],
-                  [76, 99],
-                  [105, 92],
-                  [134, 101],
-
-                  [12, 119],
-                  [39, 112],
-                  [67, 124],
-                  [96, 116],
-                  [124, 127],
-                  [146, 116],
-
-                  [35, 145],
-                  [86, 143],
-                ];
-
-                const [
-                  left,
-                  top,
-                ] = positions[index];
-
-
-                return (
-                  <View
-                    key={index}
-                    style={[
-                      styles.patternSquare,
-                      {
-                        left,
-                        top,
-                      },
-                    ]}
-                  />
-                );
-              })}
-
-            </View>
-
-
-            {/* Gift */}
-
-            <View
-              style={styles.gift}
-            >
-
-              <Ionicons
-                name="gift"
-                size={75}
-                color="#FF6AA7"
+              {/* Background */}
+              <View
+                style={[styles.couponBackground, { backgroundColor: theme.primary }]}
               />
 
+              {/* Soft circles */}
+              <View
+                style={[styles.circleOne, { backgroundColor: "#FFFFFF", opacity: 0.2 }]}
+              />
+
+              <View
+                style={[styles.circleTwo, { backgroundColor: "#FFFFFF", opacity: 0.2 }]}
+              />
+
+              {/* Pattern squares */}
+              <View style={styles.pattern}>
+                {Array.from({
+                  length: 30,
+                }).map((_, index) => {
+                  const positions = [
+                    [12, 20],
+                    [35, 16],
+                    [58, 25],
+                    [82, 15],
+                    [110, 25],
+                    [137, 17],
+                    [18, 43],
+                    [45, 38],
+                    [72, 48],
+                    [103, 42],
+                    [128, 51],
+                    [12, 69],
+                    [38, 62],
+                    [63, 72],
+                    [91, 66],
+                    [118, 75],
+                    [145, 66],
+                    [20, 94],
+                    [48, 88],
+                    [76, 99],
+                    [105, 92],
+                    [134, 101],
+                    [12, 119],
+                    [39, 112],
+                    [67, 124],
+                    [96, 116],
+                    [124, 127],
+                    [146, 116],
+                    [35, 145],
+                    [86, 143],
+                  ];
+
+                  const [left, top] = positions[index];
+
+                  return (
+                    <View
+                      key={index}
+                      style={[
+                        styles.patternSquare,
+                        {
+                          left,
+                          top,
+                          backgroundColor: "#FFFFFF",
+                          opacity: 0.3,
+                        },
+                      ]}
+                    />
+                  );
+                })}
+              </View>
+
+              {/* Gift */}
+              <View style={styles.gift}>
+                <Ionicons
+                  name="gift"
+                  size={75}
+                  color="#FFFFFF"
+                />
+              </View>
+
             </View>
 
-          </View>
-
-
-          {/* ==================================================
+            {/* ==================================================
               SCRATCH NOW
           ================================================== */}
 
-          <TouchableOpacity
-            style={styles.scratchButton}
-            onPress={() =>
-              router.push("/reward-result")
-            }
-            activeOpacity={0.85}
-          >
-
-            <Text
-              style={styles.buttonText}
+            <TouchableOpacity
+              style={[styles.scratchButton, { backgroundColor: theme.primary }]}
+              onPress={() =>
+                router.push("/reward-result")
+              }
+              activeOpacity={0.85}
             >
-              Scratch Now
-            </Text>
+              <Text style={styles.buttonText}>
+                Scratch Now
+              </Text>
+            </TouchableOpacity>
 
-          </TouchableOpacity>
-
-
-          {/* ==================================================
+            {/* ==================================================
               VIEW COUPONS
           ================================================== */}
 
-          <TouchableOpacity
-            style={styles.viewButton}
-            onPress={() =>
-              router.replace(
-                "/rewards"
-              )
-            }
-            activeOpacity={0.85}
-          >
-
-            <Text
-              style={styles.buttonText}
+            <TouchableOpacity
+              style={[styles.viewButton, { backgroundColor: theme.primary }]}
+              onPress={() =>
+                router.replace("/rewards")
+              }
+              activeOpacity={0.85}
             >
-              View Coupons
-            </Text>
+              <Text style={styles.buttonText}>
+                View Coupons
+              </Text>
+            </TouchableOpacity>
 
-          </TouchableOpacity>
+          </View>
 
         </View>
-
-      </View>
-
+      </LinearGradient>
     </SafeAreaView>
   );
 }

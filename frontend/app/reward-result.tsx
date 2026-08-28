@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useTheme } from "../constants/ThemeContext";
 
 const { width, height } = Dimensions.get("window");
 
@@ -219,6 +220,7 @@ function ConfettiPiece({
 // ============================================================
 
 export default function RewardResultScreen() {
+  const { theme } = useTheme();
 
   return (
 
@@ -288,7 +290,7 @@ export default function RewardResultScreen() {
         ================================================== */}
 
         <View
-          style={styles.rewardPopup}
+          style={[styles.rewardPopup, { backgroundColor: theme.primary }]}
         >
 
 

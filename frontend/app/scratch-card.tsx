@@ -10,8 +10,10 @@ import {
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useTheme } from "../constants/ThemeContext";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -33,6 +35,7 @@ const REQUIRED_PERCENTAGE = 45;
 // ============================================================
 
 export default function ScratchCardScreen() {
+    const { theme } = useTheme();
 
     // ----------------------------------------------------------
     // Scratched cells
@@ -290,222 +293,139 @@ export default function ScratchCardScreen() {
     // ==========================================================
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: theme.gradient[0] }}>
+            <LinearGradient colors={theme.gradient} style={{ flex: 1 }}>
+                <StatusBar
+                    barStyle="dark-content"
+                    backgroundColor="transparent"
+                    translucent
+                />
 
-            <StatusBar
-                barStyle="dark-content"
-                backgroundColor="#FFFFFF"
-            />
+                <View style={{ flex: 1 }}>
+                    {/* Header */}
+                    <View style={styles.header}>
+                        <TouchableOpacity
+                            style={styles.backButton}
+                            onPress={() => router.back()}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons
+                                name="arrow-back"
+                                size={30}
+                                color={theme.primary}
+                            />
+                        </TouchableOpacity>
 
+                        <Text style={[styles.headerTitle, { color: theme.primary }]}>
+                            Scratch Card
+                        </Text>
+                    </View>
 
-            <View style={styles.container}>
-
-
-                {/* ==================================================
-            HEADER
-        ================================================== */}
-
-                <View style={styles.header}>
-
-                    <TouchableOpacity
-                        style={styles.backButton}
-                        onPress={() => router.back()}
-                        activeOpacity={0.7}
-                    >
-
-                        <Ionicons
-                            name="arrow-back"
-                            size={30}
-                            color="#222222"
-                        />
-
-                    </TouchableOpacity>
-
-
-                    <Text style={styles.headerTitle}>
-                        Scratch Card
-                    </Text>
-
-                </View>
-
-
-                {/* ==================================================
-            SCRATCH CARD AREA
-        ================================================== */}
-
-                <View style={styles.cardArea}>
-
-                    <View
-                        style={[
-                            styles.scratchCard,
-                            {
-                                width: CARD_SIZE,
-                                height: CARD_SIZE,
-                            },
-                        ]}
-                    >
-
-                        {/* ------------------------------------------------
-                COUPON ARTWORK
-            ------------------------------------------------ */}
-
-                        <ScratchCardArtwork
-                            size={CARD_SIZE}
-                        />
-
-
-                        {/* ------------------------------------------------
-                SCRATCH COVER
-            ------------------------------------------------ */}
-
+                    {/* Scratch Card Area */}
+                    <View style={styles.cardArea}>
                         <View
                             style={[
-                                styles.scratchSurface,
+                                styles.scratchCard,
                                 {
                                     width: CARD_SIZE,
                                     height: CARD_SIZE,
+                                    backgroundColor: theme.primary,
                                 },
                             ]}
-                            {...panResponder.panHandlers}
                         >
+                            {/* Artwork */}
+                            <ScratchCardArtwork
+                                size={CARD_SIZE}
+                                theme={theme}
+                            />
 
-                            {/* Scratch cells */}
+                            {/* Scratch Cover */}
+                            <View
+                                style={[
+                                    styles.scratchSurface,
+                                    {
+                                        width: CARD_SIZE,
+                                        height: CARD_SIZE,
+                                    },
+                                ]}
+                                {...panResponder.panHandlers}
+                            >
+                                {Array.from({
+                                    length: GRID_SIZE * GRID_SIZE,
+                                }).map((_, index) => {
+                                    const row = Math.floor(index / GRID_SIZE);
+                                    const column = index % GRID_SIZE;
+                                    const cellSize = CARD_SIZE / GRID_SIZE;
+                                    const isScratched = scratchedCells.has(index);
 
-                            {Array.from({
-                                length:
-                                    GRID_SIZE *
-                                    GRID_SIZE,
-                            }).map((_, index) => {
-
-                                const row =
-                                    Math.floor(
-                                        index / GRID_SIZE
+                                    return (
+                                        <View
+                                            key={index}
+                                            pointerEvents="none"
+                                            style={[
+                                                styles.scratchCell,
+                                                {
+                                                    width: cellSize,
+                                                    height: cellSize,
+                                                    left: column * cellSize,
+                                                    top: row * cellSize,
+                                                    backgroundColor: theme.primary,
+                                                    opacity: isScratched ? 0 : 1,
+                                                },
+                                            ]}
+                                        />
                                     );
+                                })}
 
-                                const column =
-                                    index % GRID_SIZE;
-
-
-                                const cellSize =
-                                    CARD_SIZE /
-                                    GRID_SIZE;
-
-
-                                const isScratched =
-                                    scratchedCells.has(
-                                        index
-                                    );
-
-
-                                return (
+                                {scratchedCells.size === 0 && (
                                     <View
-                                        key={index}
                                         pointerEvents="none"
-                                        style={[
-                                            styles.scratchCell,
-                                            {
-                                                width: cellSize,
-                                                height: cellSize,
-
-                                                left:
-                                                    column *
-                                                    cellSize,
-
-                                                top:
-                                                    row *
-                                                    cellSize,
-
-                                                opacity:
-                                                    isScratched
-                                                        ? 0
-                                                        : 1,
-                                            },
-                                        ]}
-                                    />
-                                );
-                            })}
-
-
-                            {/* Scratch instruction */}
-
-                            {scratchedCells.size === 0 && (
-
-                                <View
-                                    pointerEvents="none"
-                                    style={styles.instructionContainer}
-                                >
-
-                                    <Ionicons
-                                        name="hand-left-outline"
-                                        size={30}
-                                        color="#FFFFFF"
-                                    />
-
-                                    <Text
-                                        style={
-                                            styles.instructionText
-                                        }
+                                        style={styles.instructionContainer}
                                     >
-                                        Scratch the card
-                                    </Text>
-
-                                </View>
-
-                            )}
-
+                                        <Ionicons
+                                            name="hand-left-outline"
+                                            size={30}
+                                            color="#FFFFFF"
+                                        />
+                                        <Text style={styles.instructionText}>
+                                            Scratch the card
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
                         </View>
 
-                    </View>
-
-
-                    {/* ==================================================
-              PROGRESS
-          ================================================== */}
-
-                    <Text style={styles.progressText}>
-
-                        {Math.min(
-                            100,
-                            Math.round(
-                                scratchedPercentage
-                            )
-                        )}
-                        % scratched
-
-                    </Text>
-
-
-                    <Text style={styles.helpText}>
-                        Scratch the card to reveal your reward
-                    </Text>
-
-
-                    {/* ==================================================
-              RESET BUTTON
-          ================================================== */}
-
-                    <TouchableOpacity
-                        style={styles.resetButton}
-                        onPress={resetScratch}
-                        activeOpacity={0.8}
-                    >
-
-                        <Ionicons
-                            name="refresh"
-                            size={19}
-                            color="#B735A8"
-                        />
-
-                        <Text style={styles.resetText}>
-                            Reset
+                        {/* Progress */}
+                        <Text style={[styles.progressText, { color: theme.primary }]}>
+                            {Math.min(
+                                100,
+                                Math.round(scratchedPercentage)
+                            )}
+                            % scratched
                         </Text>
 
-                    </TouchableOpacity>
+                        <Text style={styles.helpText}>
+                            Scratch the card to reveal your reward
+                        </Text>
 
+                        {/* Reset Button */}
+                        <TouchableOpacity
+                            style={[styles.resetButton, { borderColor: theme.primary }]}
+                            onPress={resetScratch}
+                            activeOpacity={0.8}
+                        >
+                            <Ionicons
+                                name="refresh"
+                                size={19}
+                                color={theme.primary}
+                            />
+                            <Text style={[styles.resetText, { color: theme.primary }]}>
+                                Reset
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
-
-            </View>
-
+            </LinearGradient>
         </SafeAreaView>
     );
 }
@@ -517,8 +437,10 @@ export default function ScratchCardScreen() {
 
 function ScratchCardArtwork({
     size,
+    theme,
 }: {
     size: number;
+    theme: any;
 }) {
 
     const center =
@@ -534,37 +456,16 @@ function ScratchCardArtwork({
 
 
     const rings = [
-
         {
-            radius: size * 0.16,
-            count: 12,
+            radius: size * 0.22,
+            count: 6,
             squareSize: 4,
         },
-
         {
-            radius: size * 0.25,
-            count: 18,
+            radius: size * 0.40,
+            count: 8,
             squareSize: 4,
         },
-
-        {
-            radius: size * 0.34,
-            count: 22,
-            squareSize: 5,
-        },
-
-        {
-            radius: size * 0.43,
-            count: 28,
-            squareSize: 5,
-        },
-
-        {
-            radius: size * 0.51,
-            count: 32,
-            squareSize: 6,
-        },
-
     ];
 
 
@@ -618,7 +519,7 @@ function ScratchCardArtwork({
                                 ring.squareSize / 2,
 
                             backgroundColor:
-                                "#C93773",
+                                "#FFFFFF",
 
                             opacity:
                                 0.35 +
@@ -779,7 +680,7 @@ function ScratchCardArtwork({
                 <Ionicons
                     name="gift"
                     size={size * 0.40}
-                    color="#D32B70"
+                    color="#FFFFFF"
                 />
 
             </View>

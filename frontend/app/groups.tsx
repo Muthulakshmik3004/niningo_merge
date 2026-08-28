@@ -11,14 +11,17 @@ import {
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons, Zocial } from "@expo/vector-icons";
+import { Ionicons, Zocial, FontAwesome } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { getUsername } from "../services/session";
 import { fetchGroups, GroupItem } from "../services/api";
+import { useTheme } from "../constants/ThemeContext";
+import BottomFooter from "../components/BottomFooter";
 
 export default function GroupsScreen() {
+  const { theme } = useTheme();
   const [selected, setSelected] = useState("Groups");
   const [search, setSearch] = useState("");
 
@@ -114,7 +117,7 @@ export default function GroupsScreen() {
       edges={["left", "right", "bottom"]}
     >
       <LinearGradient
-        colors={["#FFD7F8", "#FFF7FD"]}
+        colors={theme.gradient}
         style={{
           flex: 1,
           paddingTop: 38,
@@ -124,7 +127,10 @@ export default function GroupsScreen() {
         {/* Header */}
 
         <View className="flex-row justify-between items-center mb-[15px]">
-          <Text className="text-[34px] font-bold text-[#B84CE8]">
+          <Text
+            className="text-[34px] font-bold"
+            style={{ color: theme.primary }}
+          >
             Task
           </Text>
 
@@ -132,14 +138,11 @@ export default function GroupsScreen() {
             className="items-center"
             onPress={() => router.push("/spark")}
           >
-            {/* <Text className="text-[24px]">
-              ❤️‍🔥
-            </Text> */}
             <Image
-  source={require("../assets/images/ninigo_burning.gif")}
-  className="w-[30px] h-[30px]"
-  resizeMode="contain"
-/>
+              source={require("../assets/images/ninigo_burning.gif")}
+              className="w-[30px] h-[30px]"
+              resizeMode="contain"
+            />
 
             <Text className="text-[13px] font-bold text-[#FF7B00]">
               {completedDaysCount}{" "}
@@ -215,7 +218,7 @@ export default function GroupsScreen() {
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator
               size="large"
-              color="#B84CE8"
+              color={theme.primary}
             />
 
             <Text className="mt-[12px] text-[#7A2BE2]">
@@ -264,6 +267,7 @@ export default function GroupsScreen() {
         <TouchableOpacity
           className="absolute right-[20px] bottom-[80px]"
           style={{ elevation: 8 }}
+          onPress={() => router.push("/find-friends")}
         >
           <LinearGradient
             colors={["#F553E7", "#6B63FF"]}
@@ -285,49 +289,7 @@ export default function GroupsScreen() {
 
         {/* Bottom Navigation */}
 
-        <View className="absolute left-0 right-0 bottom-0 h-[60px] flex-row justify-around items-center bg-white rounded-t-[25px]">
-
-          <TouchableOpacity
-            onPress={() => router.push("/all")}
-          >
-            <Ionicons
-              name="document-text-outline"
-              size={28}
-              color="#777"
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => router.push("/status")}
-          >
-            <Zocial
-              name="statusnet"
-              size={28}
-              color="#777"
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => router.push("/rewards")}
-          >
-            <Ionicons
-              name="gift-outline"
-              size={28}
-              color="#777"
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => router.push("/profile")}
-          >
-            <Ionicons
-              name="person-outline"
-              size={28}
-              color="#777"
-            />
-          </TouchableOpacity>
-
-        </View>
+        <BottomFooter activeTab="groups" />
       </LinearGradient>
     </SafeAreaView>
   );

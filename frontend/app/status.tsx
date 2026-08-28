@@ -9,6 +9,7 @@ import {
   Alert,
 } from "react-native";
 
+import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
 import { Ionicons, Zocial } from "@expo/vector-icons";
@@ -22,8 +23,11 @@ import {
   postStatus,
   StatusItem,
 } from "../services/api";
+import { useTheme } from "../constants/ThemeContext";
+import BottomFooter from "../components/BottomFooter";
 
 export default function Status() {
+  const { theme } = useTheme();
   // =========================================================
   // USER
   // =========================================================
@@ -78,22 +82,23 @@ export default function Status() {
         fetchStatusFeed(currentUsername),
       ]);
 
-     // =========================================================
-// STATUS ORDER
-// Oldest -> Newest
-// =========================================================
+      // =========================================================
+      // STATUS ORDER
+      // Oldest -> Newest
+      // =========================================================
 
-const myStatusList = [...(mine?.results || [])].sort(
-  (a, b) =>
-    new Date(a.created_at).getTime() -
-    new Date(b.created_at).getTime()
-);
+      const myStatusList = [...(mine?.results || [])].sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() -
+          new Date(b.created_at).getTime()
+      );
 
-const contactStatusList = [...(others?.results || [])].sort(
-  (a, b) =>
-    new Date(a.created_at).getTime() -
-    new Date(b.created_at).getTime()
-);
+      const contactStatusList = [...(others?.results || [])].sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() -
+          new Date(b.created_at).getTime()
+      );
+
       setMyStatuses(myStatusList);
       setFeed(contactStatusList);
     } catch (e: any) {
@@ -227,65 +232,66 @@ const contactStatusList = [...(others?.results || [])].sort(
   // =========================================================
 
   const openContactMoment = (item: StatusItem) => {
-  const contactStatuses = feed
-    .filter(
-      (status) =>
-        status.username === item.username
-    )
-    .sort(
-      (a, b) =>
-        new Date(a.created_at).getTime() -
-        new Date(b.created_at).getTime()
+    const contactStatuses = feed
+      .filter(
+        (status) =>
+          status.username === item.username
+      )
+      .sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() -
+          new Date(b.created_at).getTime()
+      );
+
+    const tappedIndex = contactStatuses.findIndex(
+      (status) => status.id === item.id
     );
 
-  const tappedIndex = contactStatuses.findIndex(
-    (status) => status.id === item.id
-  );
+    router.push({
+      pathname: "/status-view",
+      params: {
+        id: String(item.id),
+        mine: "false",
 
-  router.push({
-    pathname: "/status-view",
-    params: {
-      id: String(item.id),
-      mine: "false",
+        image:
+          item.content_image ||
+          item.profile_image ||
+          "",
 
-      image:
-        item.content_image ||
-        item.profile_image ||
-        "",
+        name:
+          item.name ||
+          item.username ||
+          "Unknown",
 
-      name:
-        item.name ||
-        item.username ||
-        "Unknown",
+        profileImage:
+          item.profile_image ||
+          "",
 
-      profileImage:
-        item.profile_image ||
-        "",
+        createdAt: new Date(
+          item.created_at
+        ).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
 
-      createdAt: new Date(
-        item.created_at
-      ).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+        statuses: JSON.stringify(
+          contactStatuses
+        ),
 
-      statuses: JSON.stringify(
-        contactStatuses
-      ),
+        currentIndex: String(
+          tappedIndex >= 0 ? tappedIndex : 0
+        ),
+      },
+    });
+  };
 
-      currentIndex: String(
-        tappedIndex >= 0 ? tappedIndex : 0
-      ),
-    },
-  });
-};
   // =========================================================
   // UNIQUE CONTACTS
   // =========================================================
 
   const recentContacts: StatusItem[] = [];
 
-  const contactMap = new Map<
+  const contactMap = new Map
     string,
     StatusItem
   >();
@@ -326,218 +332,105 @@ const contactStatusList = [...(others?.results || [])].sort(
   // MY IMAGE
   // =========================================================
 
- const myMomentImage =
-  myStatuses.length > 0
-    ? myStatuses[myStatuses.length - 1].content_image ||
-      profileImage
-    : profileImage;
+  const myMomentImage =
+    myStatuses.length > 0
+      ? myStatuses[myStatuses.length - 1].content_image ||
+        profileImage
+      : profileImage;
 
   // =========================================================
   // UI
   // =========================================================
 
   return (
-    <LinearGradient
-      colors={[
-        "#ffe7f5",
-        "#ffffff",
-        "#f6e5ff",
-      ]}
-      style={{
-        flex: 1,
-        paddingTop: 55,
-        paddingHorizontal: 16,
-      }}
-    >
-      {/* =====================================================
-          TITLE
-      ===================================================== */}
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.gradient[0] }}>
+      <LinearGradient
+        colors={theme.gradient}
+        style={{
+          flex: 1,
+          paddingTop: 55,
+          paddingHorizontal: 16,
+        }}
+      >
+        {/* =====================================================
+            TITLE
+        ===================================================== */}
 
-      <Text className="text-[30px] font-bold text-[#b03dd7] mb-[20px]">
-        Moments
-      </Text>
+        <Text
+          className="text-[30px] font-bold mb-[20px]"
+          style={{ color: theme.primary }}
+        >
+          Moments
+        </Text>
 
-      {/* =====================================================
-          LOADING
-      ===================================================== */}
+        {/* =====================================================
+            LOADING
+        ===================================================== */}
 
-      {loading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator
-            size="large"
-            color="#b03dd7"
-          />
+        {loading ? (
+          <View className="flex-1 items-center justify-center">
+            <ActivityIndicator
+              size="large"
+              color={theme.primary}
+            />
 
-          <Text className="mt-[10px] text-[#777]">
-            Loading Moments...
-          </Text>
-        </View>
-      ) : (
-        <>
-          {/* =================================================
-              ERROR
-          ================================================= */}
+            <Text className="mt-[10px] text-[#777]">
+              Loading Moments...
+            </Text>
+          </View>
+        ) : (
+          <>
+            {/* =================================================
+                ERROR
+            ================================================= */}
 
-          {error ? (
-            <View className="items-center mt-[20px]">
-              <Text className="text-[15px] text-[#B00020] text-center">
-                {error}
-              </Text>
-
-              <TouchableOpacity
-                onPress={loadData}
-                className="mt-[15px] px-[20px] py-[10px] rounded-[20px] bg-[#b03dd7]"
-              >
-                <Text className="text-white font-bold">
-                  Try Again
+            {error ? (
+              <View className="items-center mt-[20px]">
+                <Text className="text-[15px] text-[#B00020] text-center">
+                  {error}
                 </Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <>
-              {/* =============================================
-                  TODAY
-              ============================================= */}
-
-              <Text className="text-[20px] font-semibold text-[#444] mb-[15px] mt-[10px]">
-                Today
-              </Text>
-
-              {/* =============================================
-                  MY MOMENT
-              ============================================= */}
-
-              <View className="flex-row items-center mb-[20px]">
-                {/* Profile / status image */}
 
                 <TouchableOpacity
-                  onPress={openMyMoment}
-                  disabled={posting}
+                  onPress={loadData}
+                  className="mt-[15px] px-[20px] py-[10px] rounded-[20px]"
+                  style={{ backgroundColor: theme.primary }}
                 >
-                  <View>
-                    {myMomentImage ? (
-                      <Image
-                        source={{
-                          uri: myMomentImage,
-                        }}
-                        className="w-[60px] h-[60px] rounded-[30px] border-[3px] border-[#00d26a]"
-                      />
-                    ) : (
-                      <View className="w-[60px] h-[60px] rounded-[30px] border-[3px] border-[#ccc] bg-white items-center justify-center">
-                        <Ionicons
-                          name="person"
-                          size={28}
-                          color="#999"
-                        />
-                      </View>
-                    )}
-
-                    {/* Add button */}
-
-                    <TouchableOpacity
-                      onPress={handleAddMoment}
-                      disabled={posting}
-                      className="absolute bottom-0 right-0 w-[23px] h-[23px] rounded-[12px] bg-[#b03dd7] items-center justify-center border-[2px] border-white"
-                    >
-                      {posting ? (
-                        <ActivityIndicator
-                          size="small"
-                          color="#fff"
-                        />
-                      ) : (
-                        <Ionicons
-                          name="add"
-                          size={15}
-                          color="#fff"
-                        />
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                </TouchableOpacity>
-
-                {/* My moment text */}
-
-                <TouchableOpacity
-                  onPress={openMyMoment}
-                  disabled={posting}
-                  className="ml-[15px] flex-1"
-                >
-                  <Text className="text-[18px] font-bold text-[#222]">
-                    My Moment
+                  <Text className="text-white font-bold">
+                    Try Again
                   </Text>
-
-                  <Text className="text-[14px] text-[#666] mt-[4px]">
-                    {myStatuses.length > 0
-                      ? `Viewed by ${
-                          myStatuses[0]
-                            .viewer_count || 0
-                        } ${
-                          (myStatuses[0]
-                            .viewer_count || 0) === 1
-                            ? "member"
-                            : "members"
-                        }`
-                      : "Tap to add a status update"}
-                  </Text>
-
-                  {myStatuses.length > 1 && (
-                    <Text className="text-[12px] text-[#999] mt-[2px]">
-                      {myStatuses.length} Moments
-                    </Text>
-                  )}
                 </TouchableOpacity>
               </View>
+            ) : (
+              <>
+                {/* =============================================
+                    TODAY
+                ============================================= */}
 
-              {/* =============================================
-                  RECENT UPDATES
-              ============================================= */}
+                <Text className="text-[20px] font-semibold text-[#444] mb-[15px] mt-[10px]">
+                  Today
+                </Text>
 
-              <Text className="text-[20px] font-semibold text-[#444] mb-[15px] mt-[10px]">
-                Recent Updates
-              </Text>
+                {/* =============================================
+                    MY MOMENT
+                ============================================= */}
 
-              <FlatList
-                data={recentContacts}
-                keyExtractor={(item) =>
-                  item.username ||
-                  String(item.id)
-                }
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={{
-                  paddingBottom: 80,
-                }}
-                ListEmptyComponent={
-                  <Text className="text-[14px] text-[#777] mt-[10px]">
-                    No recent Moments from your
-                    contacts yet.
-                  </Text>
-                }
-                renderItem={({ item }) => {
-                  const image =
-                    item.content_image ||
-                    item.profile_image ||
-                    "";
+                <View className="flex-row items-center mb-[20px]">
+                  {/* Profile / status image */}
 
-                  return (
-                    <TouchableOpacity
-                      onPress={() =>
-                        openContactMoment(item)
-                      }
-                      className="flex-row items-center mb-[20px]"
-                    >
-                      {/* Contact image */}
-
-                      {image ? (
+                  <TouchableOpacity
+                    onPress={openMyMoment}
+                    disabled={posting}
+                  >
+                    <View>
+                      {myMomentImage ? (
                         <Image
-                          source={{ uri: image }}
-                          className={`w-[60px] h-[60px] rounded-[30px] border-[3px] mr-[15px] ${
-                            item.viewed_by_me
-                              ? "border-[#ccc]"
-                              : "border-[#00d26a]"
-                          }`}
+                          source={{
+                            uri: myMomentImage,
+                          }}
+                          className="w-[60px] h-[60px] rounded-[30px] border-[3px] border-[#00d26a]"
                         />
                       ) : (
-                        <View className="w-[60px] h-[60px] rounded-[30px] border-[3px] border-[#ccc] mr-[15px] bg-white items-center justify-center">
+                        <View className="w-[60px] h-[60px] rounded-[30px] border-[3px] border-[#ccc] bg-white items-center justify-center">
                           <Ionicons
                             name="person"
                             size={28}
@@ -546,85 +439,151 @@ const contactStatusList = [...(others?.results || [])].sort(
                         </View>
                       )}
 
-                      {/* Contact information */}
+                      {/* Add button */}
 
-                      <View className="flex-1">
-                        <Text className="text-[18px] font-bold text-[#222]">
-                          {item.name ||
-                            item.username ||
-                            "Unknown"}
-                        </Text>
+                      <TouchableOpacity
+                        onPress={handleAddMoment}
+                        disabled={posting}
+                        className="absolute bottom-0 right-0 w-[23px] h-[23px] rounded-[12px] items-center justify-center border-[2px] border-white"
+                        style={{ backgroundColor: theme.primary }}
+                      >
+                        {posting ? (
+                          <ActivityIndicator
+                            size="small"
+                            color="#fff"
+                          />
+                        ) : (
+                          <Ionicons
+                            name="add"
+                            size={15}
+                            color="#fff"
+                          />
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
 
-                        <Text className="text-[14px] text-[#666] mt-[4px]">
-                          {formatTime(
-                            item.created_at
-                          )}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                }}
-              />
-            </>
-          )}
-        </>
-      )}
+                  {/* My moment text */}
 
-      {/* =====================================================
-          BOTTOM NAVIGATION
-      ===================================================== */}
+                  <TouchableOpacity
+                    onPress={openMyMoment}
+                    disabled={posting}
+                    className="ml-[15px] flex-1"
+                  >
+                    <Text className="text-[18px] font-bold text-[#222]">
+                      My Moment
+                    </Text>
 
-      <View className="absolute left-0 right-0 bottom-0 h-[60px] flex-row justify-around items-center bg-white rounded-t-[25px]">
-        {/* ALL */}
+                    <Text className="text-[14px] text-[#666] mt-[4px]">
+                      {myStatuses.length > 0
+                        ? `Viewed by ${
+                            myStatuses[0]
+                              .viewer_count || 0
+                          } ${
+                            (myStatuses[0]
+                              .viewer_count || 0) === 1
+                              ? "member"
+                              : "members"
+                          }`
+                        : "Tap to add a status update"}
+                    </Text>
 
-        <TouchableOpacity
-          onPress={() => router.push("/all")}
-        >
-          <Ionicons
-            name="document-text-outline"
-            size={28}
-            color="#777"
-          />
-        </TouchableOpacity>
+                    {myStatuses.length > 1 && (
+                      <Text className="text-[12px] text-[#999] mt-[2px]">
+                        {myStatuses.length} Moments
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
 
-        {/* STATUS */}
+                {/* =============================================
+                    RECENT UPDATES
+                ============================================= */}
 
-        <TouchableOpacity>
-          <Zocial
-            name="statusnet"
-            size={28}
-            color="#b03dd7"
-          />
-        </TouchableOpacity>
+                <Text className="text-[20px] font-semibold text-[#444] mb-[15px] mt-[10px]">
+                  Recent Updates
+                </Text>
 
-        {/* REWARDS */}
+                <FlatList
+                  data={recentContacts}
+                  keyExtractor={(item) =>
+                    item.username ||
+                    String(item.id)
+                  }
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{
+                    paddingBottom: 80,
+                  }}
+                  ListEmptyComponent={
+                    <Text className="text-[14px] text-[#777] mt-[10px]">
+                      No recent Moments from your
+                      contacts yet.
+                    </Text>
+                  }
+                  renderItem={({ item }) => {
+                    const image =
+                      item.content_image ||
+                      item.profile_image ||
+                      "";
 
-        <TouchableOpacity
-          onPress={() =>
-            router.push("/rewards")
-          }
-        >
-          <Ionicons
-            name="gift-outline"
-            size={28}
-            color="#777"
-          />
-        </TouchableOpacity>
+                    return (
+                      <TouchableOpacity
+                        onPress={() =>
+                          openContactMoment(item)
+                        }
+                        className="flex-row items-center mb-[20px]"
+                      >
+                        {/* Contact image */}
 
-        {/* PROFILE */}
+                        {image ? (
+                          <Image
+                            source={{ uri: image }}
+                            className={`w-[60px] h-[60px] rounded-[30px] border-[3px] mr-[15px] ${
+                              item.viewed_by_me
+                                ? "border-[#ccc]"
+                                : "border-[#00d26a]"
+                            }`}
+                          />
+                        ) : (
+                          <View className="w-[60px] h-[60px] rounded-[30px] border-[3px] border-[#ccc] mr-[15px] bg-white items-center justify-center">
+                            <Ionicons
+                              name="person"
+                              size={28}
+                              color="#999"
+                            />
+                          </View>
+                        )}
 
-        <TouchableOpacity
-          onPress={() =>
-            router.push("/profile")
-          }
-        >
-          <Ionicons
-            name="person-outline"
-            size={28}
-            color="#777"
-          />
-        </TouchableOpacity>
-      </View>
-    </LinearGradient>
+                        {/* Contact information */}
+
+                        <View className="flex-1">
+                          <Text className="text-[18px] font-bold text-[#222]">
+                            {item.name ||
+                              item.username ||
+                              "Unknown"}
+                          </Text>
+
+                          <Text className="text-[14px] text-[#666] mt-[4px]">
+                            {formatTime(
+                              item.created_at
+                            )}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  }}
+                />
+              </>
+            )}
+          </>
+        )}
+
+        {/* =====================================================
+            BOTTOM NAVIGATION
+        ===================================================== */}
+
+        <BottomFooter activeTab="status" />
+      </LinearGradient>
+    </SafeAreaView>
   );
 }

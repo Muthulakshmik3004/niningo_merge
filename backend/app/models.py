@@ -1,63 +1,26 @@
 import mongoengine
-
 from mongoengine import (
-    Document,
-    EmbeddedDocument,
-    StringField,
-    FloatField,
-    BooleanField,
-    DateTimeField,
-    IntField,
-    ListField,
-    EmbeddedDocumentField,
-    DictField,
+    Document, EmbeddedDocument, StringField, FloatField, BooleanField,
+    DateTimeField, IntField, ListField, EmbeddedDocumentField, DictField,
 )
-
 from datetime import datetime, timedelta
 
 
-# ============================================================
-# OFFICE GEOFENCE
-# ============================================================
-
 class OfficeGeofence(mongoengine.Document):
-    office_name = mongoengine.StringField(
-        default="Main Office"
-    )
-
-    latitude = mongoengine.FloatField(
-        required=True
-    )
-
-    longitude = mongoengine.FloatField(
-        required=True
-    )
-
-    radius_meters = mongoengine.FloatField(
-        default=100.0
-    )
-
-    is_active = mongoengine.BooleanField(
-        default=True
-    )
-
-    updated_at = mongoengine.DateTimeField(
-        default=datetime.utcnow
-    )
+    office_name = mongoengine.StringField(default="Main Office")
+    latitude = mongoengine.FloatField(required=True)
+    longitude = mongoengine.FloatField(required=True)
+    radius_meters = mongoengine.FloatField(default=100.0)
+    is_active = mongoengine.BooleanField(default=True)
+    updated_at = mongoengine.DateTimeField(default=datetime.utcnow)
 
     meta = {
-        "collection": "office_geofences"
+        'collection': 'office_geofences'
     }
 
 
-# ============================================================
-# PROFILE
-# ============================================================
-
 class Profile(Document):
-
-    # ── Identity ─────────────────────────────────────────────
-
+    # ── Identity ──
     phone_number = StringField(
         required=True,
         unique=True,
@@ -65,13 +28,8 @@ class Profile(Document):
         max_length=20,
     )
 
-    # ── Core profile fields ──────────────────────────────────
-
-    name = StringField(
-        required=True,
-        max_length=100
-    )
-
+    # ── Core profile fields ──
+    name = StringField(required=True, max_length=100)
     username = StringField(
         required=True,
         unique=True,
@@ -79,25 +37,11 @@ class Profile(Document):
         max_length=50
     )
 
-    bio = StringField(
-        max_length=500,
-        default=""
-    )
+    bio = StringField(max_length=500, default="")
+    language = StringField(max_length=50, default="")
+    gender = StringField(max_length=20, default="")
 
-    language = StringField(
-        max_length=50,
-        default=""
-    )
-
-    gender = StringField(
-        max_length=20,
-        default=""
-    )
-
-    profile_image = StringField(
-        required=False,
-        null=True
-    )
+    profile_image = StringField(required=False, null=True)
 
     # ── Theme ────────────────────────────────────────────────
     #
@@ -115,52 +59,29 @@ class Profile(Document):
     )
 
     # ── Onboarding flags ─────────────────────────────────────
-
-    profile_completed = BooleanField(
-        default=False
-    )
-
-    location_completed = BooleanField(
-        default=False
-    )
+    profile_completed = BooleanField(default=False)
+    location_completed = BooleanField(default=False)
 
     # ── Location fields ──────────────────────────────────────
+    home_address = StringField(default="")
+    home_latitude = FloatField(null=True)
+    home_longitude = FloatField(null=True)
 
-    home_address = StringField(
-        default=""
-    )
+    office_address = StringField(default="")
+    office_latitude = FloatField(null=True)
+    office_longitude = FloatField(null=True)
 
-    home_latitude = FloatField(
-        null=True
-    )
-
-    home_longitude = FloatField(
-        null=True
-    )
-
-    office_address = StringField(
-        default=""
-    )
-
-    office_latitude = FloatField(
-        null=True
-    )
-
-    office_longitude = FloatField(
-        null=True
-    )
-
-    location_updated_at = DateTimeField(
-        null=True
-    )
+    location_updated_at = DateTimeField(null=True)
 
     meta = {
         "collection": "profiles",
-
         "indexes": [
             "phone_number",
             "username",
         ],
+        # allows fields present in Mongo docs but not (yet) on the model
+        # without raising FieldDoesNotExist
+        "strict": False,
     }
 
 
@@ -171,58 +92,30 @@ class Profile(Document):
 
 class Contact(Document):
 
-    # The logged-in user's username
-    owner_username = StringField(
-        required=True,
-        max_length=50
-    )
+    # The logged-in user's username (whose list this row belongs to)
+    owner_username = StringField(required=True, max_length=50)
 
-    name = StringField(
-        required=True,
-        max_length=100
-    )
+    # The connected friend's username
+    target_username = StringField(default="")
 
-    profile_image = StringField(
-        default=""
-    )
+    name = StringField(required=True, max_length=100)
+    profile_image = StringField(default="")
+    msg = StringField(default="")           # last message / task text
+    time_label = StringField(default="")     # e.g. "11:54 am", "Yesterday"
+    count = IntField(default=0)              # unread badge count
+    color = StringField(default="#39E600")   # badge color
 
-    msg = StringField(
-        default=""
-    )
+    is_unread = BooleanField(default=False)
+    is_pending = BooleanField(default=False)
 
-    time_label = StringField(
-        default=""
-    )
-
-    count = IntField(
-        default=0
-    )
-
-    color = StringField(
-        default="#39E600"
-    )
-
-    is_unread = BooleanField(
-        default=False
-    )
-
-    is_pending = BooleanField(
-        default=False
-    )
-
-    created_at = DateTimeField(
-        default=datetime.utcnow
-    )
-
-    updated_at = DateTimeField(
-        default=datetime.utcnow
-    )
+    created_at = DateTimeField(default=datetime.utcnow)
+    updated_at = DateTimeField(default=datetime.utcnow)
 
     meta = {
         "collection": "contacts",
-
         "indexes": [
             "owner_username",
+            "target_username",
             "is_unread",
             "is_pending",
         ],
@@ -235,34 +128,17 @@ class Contact(Document):
 
 class Group(Document):
 
-    owner_username = StringField(
-        required=True,
-        max_length=50
-    )
+    owner_username = StringField(required=True, max_length=50)
 
-    name = StringField(
-        required=True,
-        max_length=100
-    )
+    name = StringField(required=True, max_length=100)
+    image = StringField(default="")
+    time_label = StringField(default="")
 
-    image = StringField(
-        default=""
-    )
-
-    time_label = StringField(
-        default=""
-    )
-
-    created_at = DateTimeField(
-        default=datetime.utcnow
-    )
+    created_at = DateTimeField(default=datetime.utcnow)
 
     meta = {
         "collection": "groups",
-
-        "indexes": [
-            "owner_username"
-        ],
+        "indexes": ["owner_username"],
     }
 
 
@@ -272,22 +148,10 @@ class Group(Document):
 
 class StatusViewer(EmbeddedDocument):
 
-    viewer_username = StringField(
-        required=True,
-        max_length=50
-    )
-
-    viewer_name = StringField(
-        default=""
-    )
-
-    viewer_image = StringField(
-        default=""
-    )
-
-    viewed_at = DateTimeField(
-        default=datetime.utcnow
-    )
+    viewer_username = StringField(required=True, max_length=50)
+    viewer_name = StringField(default="")
+    viewer_image = StringField(default="")
+    viewed_at = DateTimeField(default=datetime.utcnow)
 
 
 # ============================================================
@@ -296,53 +160,25 @@ class StatusViewer(EmbeddedDocument):
 
 class StatusUpdate(Document):
 
-    # Who posted the status
-    username = StringField(
-        required=True,
-        max_length=50
-    )
+    username = StringField(required=True, max_length=50)  # who posted
+    name = StringField(default="")
+    profile_image = StringField(default="")  # poster's avatar (ring photo)
 
-    name = StringField(
-        default=""
-    )
+    content_image = StringField(default="")  # the status photo itself
+    caption = StringField(default="")
 
-    profile_image = StringField(
-        default=""
-    )
+    created_at = DateTimeField(default=datetime.utcnow)
+    expires_at = DateTimeField(default=lambda: datetime.utcnow() + timedelta(hours=24))
 
-    # Status photo
-    content_image = StringField(
-        default=""
-    )
-
-    caption = StringField(
-        default=""
-    )
-
-    created_at = DateTimeField(
-        default=datetime.utcnow
-    )
-
-    expires_at = DateTimeField(
-        default=lambda: datetime.utcnow() + timedelta(hours=24)
-    )
-
-    viewers = ListField(
-        EmbeddedDocumentField(StatusViewer),
-        default=list
-    )
+    viewers = ListField(EmbeddedDocumentField(StatusViewer), default=list)
 
     meta = {
         "collection": "status_updates",
-
         "indexes": [
             "username",
             "-created_at",
         ],
-
-        "ordering": [
-            "-created_at"
-        ],
+        "ordering": ["-created_at"],
     }
 
 
@@ -352,59 +188,73 @@ class StatusUpdate(Document):
 
 class SparkProgress(Document):
 
-    username = StringField(
-        required=True,
-        max_length=50
-    )
+    username = StringField(required=True, max_length=50)
 
-    # Calendar date for this Spark record
-    # Example: 2026-08-27
-    date = StringField(
-        required=True,
-        max_length=10
-    )
+    # Calendar date for this Spark record, e.g. "2026-08-27"
+    date = StringField(required=True, max_length=10)
 
-    # Stores mission completion/photo data
-    #
-    # Example:
-    #
+    # Mission completion/photo data, e.g.:
     # {
-    #     "Early Wake-up": {
-    #         "completed": True,
-    #         "photo": "..."
-    #     },
-    #
-    #     "Hydration": {
-    #         "completed": True,
-    #         "photo": "..."
-    #     }
+    #     "Early Wake-up": {"completed": True, "photo": "..."},
+    #     "Hydration": {"completed": True, "photo": "..."}
     # }
+    tasks = DictField(default=dict)
 
-    tasks = DictField(
-        default=dict
-    )
-
-    created_at = DateTimeField(
-        default=datetime.utcnow
-    )
-
-    updated_at = DateTimeField(
-        default=datetime.utcnow
-    )
+    created_at = DateTimeField(default=datetime.utcnow)
+    updated_at = DateTimeField(default=datetime.utcnow)
 
     meta = {
         "collection": "spark_progress",
-
         "indexes": [
             {
-                "fields": [
-                    "username",
-                    "date"
-                ],
+                "fields": ["username", "date"],
                 "unique": True
             },
-
             "username",
             "date",
         ],
+    }
+
+
+# ============================================================
+# ONE-TO-ONE CHAT MESSAGES
+# ============================================================
+
+class ChatMessage(Document):
+    sender_username = StringField(required=True, max_length=50)
+    receiver_username = StringField(required=True, max_length=50)
+    conversation_key = StringField(required=True, max_length=110)
+    text = StringField(required=True)
+    is_read = BooleanField(default=False)
+    created_at = DateTimeField(default=datetime.utcnow)
+
+    meta = {
+        "collection": "chat_messages",
+        "indexes": [
+            "conversation_key",
+            "sender_username",
+            "receiver_username",
+            "-created_at",
+        ],
+        "ordering": ["created_at"],
+    }
+
+
+# ============================================================
+# LEADERBOARD / RANKING
+# ============================================================
+
+class Ranking(Document):
+    username = StringField(required=True, max_length=50)
+    display_name = StringField(max_length=100, default="")
+    points = IntField(default=0)
+    completed_tasks = IntField(default=0)
+    family = StringField(max_length=100, default="")
+    location = StringField(max_length=100, default="")
+    scope = StringField(max_length=20, default="contacts")  # "contacts" | "tirunelveli"
+
+    meta = {
+        "collection": "rankings",
+        "auto_create_index": False,
+        "indexes": ["username", "scope"],
     }

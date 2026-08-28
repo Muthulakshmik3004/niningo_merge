@@ -11,15 +11,18 @@ import {
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons, Zocial } from "@expo/vector-icons";
+import { Ionicons, FontAwesome, Zocial } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { getUsername } from "../services/session";
 import { fetchContacts, ContactItem } from "../services/api";
+import { useTheme } from "../constants/ThemeContext";
+import BottomFooter from "../components/BottomFooter";
 
 export default function UnreadScreen() {
+  const { theme } = useTheme();
   const [selected, setSelected] = useState("Unread");
   const [search, setSearch] = useState("");
 
@@ -97,6 +100,7 @@ export default function UnreadScreen() {
     }, [loadData, loadCompletedDays])
   );
 
+
   // ==========================================
   // FILTER SEARCH RESULTS
   // ==========================================
@@ -113,21 +117,20 @@ export default function UnreadScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1 }}
-      edges={["left", "right", "bottom"]}
+      style={{ flex: 1, backgroundColor: theme.gradient[0] }}
+      edges={["top", "left", "right", "bottom"]}
     >
       <LinearGradient
-        colors={["#FFD7F8", "#FFF7FD"]}
+        colors={theme.gradient}
         style={{
           flex: 1,
-          paddingTop: 38,
           paddingHorizontal: 15,
         }}
       >
         {/* ================= HEADER ================= */}
 
         <View className="flex-row justify-between items-center mb-[15px]">
-          <Text className="text-[34px] font-bold text-[#B84CE8]">
+          <Text className="text-[34px] font-bold" style={{ color: theme.primary }}>
             Task
           </Text>
 
@@ -193,15 +196,15 @@ export default function UnreadScreen() {
                     router.push("/groups");
                   }
                 }}
-                className={`px-[18px] py-[7px] rounded-[18px] border border-[#B37BD8] ${
-                  selected === item
-                    ? "bg-[#F1C2F7]"
-                    : "bg-[#FFF]"
-                }`}
+                style={{
+                  backgroundColor: selected === item ? theme.primary : "#FFFFFF",
+                  borderColor: theme.primary,
+                }}
+                className="px-[18px] py-[7px] rounded-[18px] border"
               >
                 <Text
                   style={{
-                    color: "#000",
+                    color: selected === item ? "#FFF" : theme.primary,
                     fontWeight: "600",
                   }}
                 >
@@ -242,13 +245,31 @@ export default function UnreadScreen() {
               </Text>
             }
             renderItem={({ item }) => (
-              <TouchableOpacity className="flex-row items-center py-[12px]">
+              <TouchableOpacity
+                className="flex-row items-center py-[12px]"
+                onPress={() =>
+                  router.push({
+                    pathname: "/chat",
+                    params: {
+                      username: item.username || item.name,
+                      name: item.name,
+                      image: item.image || "",
+                    },
+                  })
+                }
+              >
                 {/* Avatar */}
 
-                <Image
-                  source={{ uri: item.image }}
-                  className="w-[60px] h-[60px] rounded-[30px]"
-                />
+                {item.image ? (
+                  <Image
+                    source={{ uri: item.image }}
+                    className="w-[60px] h-[60px] rounded-[30px]"
+                  />
+                ) : (
+                  <View className="w-[60px] h-[60px] rounded-[30px] bg-[#F1C2F7] justify-center items-center">
+                    <FontAwesome name="user" size={28} color="#7A2BE2" />
+                  </View>
+                )}
 
                 {/* Name + Message */}
 
@@ -292,6 +313,7 @@ export default function UnreadScreen() {
         <TouchableOpacity
           className="absolute right-[20px] bottom-[80px]"
           style={{ elevation: 8 }}
+          onPress={() => router.push("/find-friends")}
         >
           <LinearGradient
             colors={["#F553E7", "#6B63FF"]}
@@ -313,56 +335,7 @@ export default function UnreadScreen() {
 
         {/* ================= BOTTOM NAVIGATION ================= */}
 
-        <View className="absolute left-0 right-0 bottom-0 h-[60px] flex-row justify-around items-center bg-white rounded-t-[25px]">
-          
-          {/* Task */}
-
-          <TouchableOpacity
-            onPress={() => router.push("/all")}
-          >
-            <Ionicons
-              name="document-text-outline"
-              size={28}
-              color="#777"
-            />
-          </TouchableOpacity>
-
-          {/* Status */}
-
-          <TouchableOpacity
-            onPress={() => router.push("/status")}
-          >
-            <Zocial
-              name="statusnet"
-              size={28}
-              color="#777"
-            />
-          </TouchableOpacity>
-
-          {/* Rewards */}
-
-          <TouchableOpacity
-            onPress={() => router.push("/rewards")}
-          >
-            <Ionicons
-              name="gift-outline"
-              size={28}
-              color="#777"
-            />
-          </TouchableOpacity>
-
-          {/* Profile */}
-
-          <TouchableOpacity
-            onPress={() => router.push("/profile")}
-          >
-            <Ionicons
-              name="person-outline"
-              size={28}
-              color="#777"
-            />
-          </TouchableOpacity>
-        </View>
+        <BottomFooter activeTab="all" />
       </LinearGradient>
     </SafeAreaView>
   );

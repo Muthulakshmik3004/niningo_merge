@@ -1,8 +1,6 @@
 from django.urls import path
 from . import views
-
 from .views import ProfileView
-
 
 urlpatterns = [
     # Mobile login
@@ -11,7 +9,7 @@ urlpatterns = [
     # Profile
     path(
         "profile/",
-        ProfileView.as_view(),
+        views.ProfileView.as_view(),
         name="profile"
     ),
 
@@ -78,7 +76,7 @@ urlpatterns = [
         name="delete_status"
     ),
 
-    # Contact matching
+    # Contact matching & Connect
     path(
         "match-contacts/",
         views.match_contacts,
@@ -89,7 +87,13 @@ urlpatterns = [
         views.match_contacts,
         name="contacts_match"
     ),
-        # Spark / Daily Mission Progress
+    path(
+        "contacts/connect/",
+        views.connect_friend,
+        name="connect_friend"
+    ),
+
+    # Spark / Daily Mission Progress
     path(
         "api/spark/",
         views.spark_progress,
@@ -99,5 +103,24 @@ urlpatterns = [
         "api/spark/delete-task/",
         views.delete_spark_task,
         name="delete_spark_task"
+    ),
+
+    # One-to-One Chat
+    path(
+        "api/chat/messages/",
+        views.chat_messages_list,
+        name="chat_messages_list"
+    ),
+    path(
+        "api/chat/send/",
+        views.chat_messages_list,
+        name="chat_send",
+    ),
+
+    # Ranking / Leaderboard
+    path(
+        "ranking/",
+        views.RankingView.as_view(),
+        name="ranking",
     ),
 ]

@@ -12,6 +12,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import BottomFooter from "../components/BottomFooter";
+import { useTheme } from "../constants/ThemeContext";
 
 
 // ============================================================
@@ -19,6 +22,7 @@ import { router } from "expo-router";
 // ============================================================
 
 export default function RewardsScreen() {
+  const { theme } = useTheme();
   const { width } = useWindowDimensions();
 
   /*
@@ -34,614 +38,309 @@ export default function RewardsScreen() {
   const cardSize = (width - 52 - 20) / 2;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor="#F7D8F5"
-      />
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.gradient[0] }} edges={["top", "left", "right", "bottom"]}>
+      <LinearGradient colors={theme.gradient} style={{ flex: 1 }}>
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor="transparent"
+          translucent
+        />
 
-      <View style={styles.container}>
-
-        {/* ==================================================
-            HEADER
-        ================================================== */}
-
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>
-            Rewards
-          </Text>
-        </View>
-
-
-        {/* ==================================================
-            PAGE CONTENT
-        ================================================== */}
-
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
+        <View style={{ flex: 1 }}>
 
           {/* ==================================================
-              COUPONS / STORES TABS
+              HEADER
           ================================================== */}
 
-          <View style={styles.tabsContainer}>
-
-            {/* Coupons */}
-            <TouchableOpacity
-              style={styles.tab}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.activeTabText}>
-                Coupons
-              </Text>
-
-              <View style={styles.activeTabLine} />
-            </TouchableOpacity>
-
-
-            {/* Stores */}
-            <TouchableOpacity
-              style={styles.tab}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.inactiveTabText}>
-                Stores
-              </Text>
-            </TouchableOpacity>
-
-          </View>
-
-
-          {/* ==================================================
-              COUPON 1
-          ================================================== */}
-
-          <TouchableOpacity
-            style={[
-              styles.couponCard,
-              styles.pinkCoupon,
-            ]}
-            activeOpacity={0.9}
-          >
-
-            {/* Decorative large circle */}
-            <View style={styles.couponCirclePink} />
-
-            {/* Decorative dots */}
-            <View
-              style={[
-                styles.couponDot,
-                styles.couponDotPink1,
-              ]}
-            />
-
-            <View
-              style={[
-                styles.couponDot,
-                styles.couponDotPink2,
-              ]}
-            />
-
-            <View
-              style={[
-                styles.couponDotSmall,
-                styles.couponDotPink3,
-              ]}
-            />
-
-
-            {/* Left coupon text */}
-            <View style={styles.couponLeft}>
-
-              <View style={styles.amountRow}>
-
-                <Text style={styles.amountText}>
-                  ₹100
-                </Text>
-
-                <Text style={styles.offText}>
-                  OFF
-                </Text>
-
-              </View>
-
-              <Text style={styles.couponSubtitle}>
-                for Grocery
-              </Text>
-
-            </View>
-
-
-            {/* Right coupon section */}
-            <View style={styles.couponRight}>
-
-              <TouchableOpacity
-                style={styles.useNowButton}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.useNowText}>
-                  Use Now
-                </Text>
-              </TouchableOpacity>
-
-              <Text style={styles.expiryText}>
-                Expires on May 05
-              </Text>
-
-            </View>
-
-          </TouchableOpacity>
-
-
-          {/* ==================================================
-              COUPON 2
-          ================================================== */}
-
-          <TouchableOpacity
-            style={[
-              styles.couponCard,
-              styles.yellowCoupon,
-            ]}
-            activeOpacity={0.9}
-          >
-
-            {/* Decorative large circle */}
-            <View style={styles.couponCircleYellow} />
-
-            {/* Decorative dots */}
-            <View
-              style={[
-                styles.couponDot,
-                styles.couponDotYellow1,
-              ]}
-            />
-
-            <View
-              style={[
-                styles.couponDot,
-                styles.couponDotYellow2,
-              ]}
-            />
-
-            <View
-              style={[
-                styles.couponDotSmall,
-                styles.couponDotYellow3,
-              ]}
-            />
-
-
-            {/* Left text */}
-            <View style={styles.couponLeft}>
-
-              <View style={styles.amountRow}>
-
-                <Text style={styles.amountText}>
-                  20%
-                </Text>
-
-                <Text style={styles.offText}>
-                  OFF
-                </Text>
-
-              </View>
-
-              <Text style={styles.couponSubtitle}>
-                for Bookings
-              </Text>
-
-            </View>
-
-
-            {/* Right section */}
-            <View style={styles.couponRight}>
-
-              <TouchableOpacity
-                style={styles.useNowButton}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.useNowText}>
-                  Use Now
-                </Text>
-              </TouchableOpacity>
-
-              <Text style={styles.expiryText}>
-                Expires on May 05
-              </Text>
-
-            </View>
-
-          </TouchableOpacity>
-
-
-          {/* ==================================================
-              SCRATCH CARD HEADER
-          ================================================== */}
-
-          <View style={styles.scratchHeader}>
-
-            <Text style={styles.scratchTitle}>
-              Scratch Card
+          <View style={[styles.header, { backgroundColor: "transparent" }]}>
+            <Text style={[styles.headerTitle, { color: theme.primary }]}>
+              Rewards
             </Text>
-
-            <TouchableOpacity
-              onPress={() => router.push("/scratch-success")}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.viewAllText}>
-                View all
-              </Text>
-            </TouchableOpacity>
-
           </View>
 
 
           {/* ==================================================
-              SCRATCH CARDS
+              PAGE CONTENT
           ================================================== */}
 
-          <View style={styles.cardsContainer}>
-
-            {/* CARD 1 */}
-            <TouchableOpacity
-              style={[
-                styles.scratchCard,
-                {
-                  width: cardSize,
-                  height: cardSize,
-                },
-              ]}
-              onPress={() => router.push("/scratch-success")}
-              activeOpacity={0.9}
-            >
-              <ScratchCardDesign size={cardSize} />
-            </TouchableOpacity>
-
-
-            {/* CARD 2 */}
-            <TouchableOpacity
-              style={[
-                styles.scratchCard,
-                {
-                  width: cardSize,
-                  height: cardSize,
-                },
-              ]}
-              onPress={() => router.push("/scratch-success")}
-              activeOpacity={0.9}
-            >
-              <ScratchCardDesign size={cardSize} />
-            </TouchableOpacity>
-
-
-            {/* CARD 3 */}
-            <TouchableOpacity
-              style={[
-                styles.scratchCard,
-                {
-                  width: cardSize,
-                  height: cardSize,
-                },
-              ]}
-              onPress={() => router.push("/scratch-success")}
-              activeOpacity={0.9}
-            >
-              <ScratchCardDesign size={cardSize} />
-            </TouchableOpacity>
-
-
-            {/* CARD 4 */}
-            <TouchableOpacity
-              style={[
-                styles.scratchCard,
-                {
-                  width: cardSize,
-                  height: cardSize,
-                },
-              ]}
-              onPress={() => router.push("/scratch-success")}
-              activeOpacity={0.9}
-            >
-              <ScratchCardDesign size={cardSize} />
-            </TouchableOpacity>
-
-
-            {/* CARD 5 */}
-            <TouchableOpacity
-              style={[
-                styles.scratchCard,
-                {
-                  width: cardSize,
-                  height: cardSize,
-                },
-              ]}
-              onPress={() => router.push("/scratch-success")}
-              activeOpacity={0.9}
-            >
-              <ScratchCardDesign size={cardSize} />
-            </TouchableOpacity>
-
-
-            {/* CARD 6 */}
-            <TouchableOpacity
-              style={[
-                styles.scratchCard,
-                {
-                  width: cardSize,
-                  height: cardSize,
-                },
-              ]}
-              onPress={() => router.push("/scratch-success")}
-              activeOpacity={0.9}
-            >
-              <ScratchCardDesign size={cardSize} />
-            </TouchableOpacity>
-
-          </View>
-
-
-          {/* Extra bottom space */}
-          <View style={styles.bottomSpace} />
-
-        </ScrollView>
-
-
-        {/* ==================================================
-            BOTTOM NAVIGATION
-        ================================================== */}
-
-        <View style={styles.bottomNavigation}>
-
-          {/* Home / All */}
-          <TouchableOpacity
-            style={styles.navItem}
-            onPress={() => router.push("/all")}
-            activeOpacity={0.7}
+          <ScrollView
+            style={[styles.scrollView, { backgroundColor: "transparent" }]}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
           >
-            <Ionicons
-              name="clipboard-outline"
-              size={29}
-              color="#777777"
-            />
-          </TouchableOpacity>
+
+            {/* ==================================================
+                COUPONS / STORES TABS
+            ================================================== */}
+
+            <View style={styles.tabsContainer}>
+
+              {/* Coupons */}
+              <TouchableOpacity
+                style={styles.tab}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.activeTabText, { color: theme.primary }]}>
+                  Coupons
+                </Text>
+
+                <View style={[styles.activeTabLine, { backgroundColor: theme.primary }]} />
+              </TouchableOpacity>
 
 
-          {/* Status */}
-          <TouchableOpacity
-            style={styles.navItem}
-            onPress={() => router.push("/status")}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name="leaf-outline"
-              size={31}
-              color="#777777"
-            />
-          </TouchableOpacity>
+              {/* Stores */}
+              <TouchableOpacity
+                style={styles.tab}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.inactiveTabText}>
+                  Stores
+                </Text>
+              </TouchableOpacity>
+
+            </View>
 
 
-          {/* Rewards - Active */}
-          <TouchableOpacity
-            style={styles.navItem}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name="gift"
-              size={32}
-              color="#111111"
-            />
-          </TouchableOpacity>
+            {/* ==================================================
+                COUPON 1
+            ================================================== */}
+
+            <TouchableOpacity
+              style={[
+                styles.couponCard,
+                { backgroundColor: theme.primary },
+              ]}
+              activeOpacity={0.9}
+            >
+
+              {/* Decorative large circle */}
+              <View style={[styles.couponCirclePink, { backgroundColor: "#FFFFFF", opacity: 0.2 }]} />
+
+              {/* Decorative dots */}
+              <View style={[styles.couponDot, styles.couponDotPink1, { backgroundColor: "#FFFFFF", opacity: 0.4 }]} />
+              <View style={[styles.couponDot, styles.couponDotPink2, { backgroundColor: "#FFFFFF", opacity: 0.4 }]} />
+              <View style={[styles.couponDotSmall, styles.couponDotPink3, { backgroundColor: "#FFFFFF", opacity: 0.4 }]} />
 
 
-          {/* Profile */}
-          <TouchableOpacity
-            style={styles.navItem}
-            onPress={() => router.push("/profile")}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name="person-outline"
-              size={31}
-              color="#777777"
-            />
-          </TouchableOpacity>
+              {/* Left coupon text */}
+              <View style={styles.couponLeft}>
+
+                <View style={styles.amountRow}>
+
+                  <Text style={[styles.amountText, { color: "#FFFFFF" }]}>
+                    ₹100
+                  </Text>
+
+                  <Text style={[styles.offText, { color: "#FFFFFF" }]}>
+                    OFF
+                  </Text>
+
+                </View>
+
+                <Text style={[styles.couponSubtitle, { color: "#FFFFFF" }]}>
+                  for Grocery
+                </Text>
+
+              </View>
+
+
+              {/* Right coupon section */}
+              <View style={styles.couponRight}>
+
+                <TouchableOpacity
+                  style={[styles.useNowButton, { backgroundColor: "#FFFFFF" }]}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.useNowText, { color: theme.primary }]}>
+                    Use Now
+                  </Text>
+                </TouchableOpacity>
+
+                <Text style={[styles.expiryText, { color: "#FFFFFF" }]}>
+                  Expires on May 05
+                </Text>
+
+              </View>
+
+            </TouchableOpacity>
+
+
+            {/* ==================================================
+                COUPON 2
+            ================================================== */}
+
+            <TouchableOpacity
+              style={[
+                styles.couponCard,
+                { backgroundColor: theme.primary + "CC", marginTop: 18 },
+              ]}
+              activeOpacity={0.9}
+            >
+
+              {/* Decorative large circle */}
+              <View style={[styles.couponCircleYellow, { backgroundColor: "#FFFFFF", opacity: 0.2 }]} />
+
+              {/* Decorative dots */}
+              <View style={[styles.couponDot, styles.couponDotYellow1, { backgroundColor: "#FFFFFF", opacity: 0.4 }]} />
+              <View style={[styles.couponDot, styles.couponDotYellow2, { backgroundColor: "#FFFFFF", opacity: 0.4 }]} />
+              <View style={[styles.couponDotSmall, styles.couponDotYellow3, { backgroundColor: "#FFFFFF", opacity: 0.4 }]} />
+
+
+              {/* Left text */}
+              <View style={styles.couponLeft}>
+
+                <View style={styles.amountRow}>
+
+                  <Text style={[styles.amountText, { color: "#FFFFFF" }]}>
+                    20%
+                  </Text>
+
+                  <Text style={[styles.offText, { color: "#FFFFFF" }]}>
+                    OFF
+                  </Text>
+
+                </View>
+
+                <Text style={[styles.couponSubtitle, { color: "#FFFFFF" }]}>
+                  for Bookings
+                </Text>
+
+              </View>
+
+
+              {/* Right section */}
+              <View style={styles.couponRight}>
+
+                <TouchableOpacity
+                  style={[styles.useNowButton, { backgroundColor: "#FFFFFF" }]}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.useNowText, { color: theme.primary }]}>
+                    Use Now
+                  </Text>
+                </TouchableOpacity>
+
+                <Text style={[styles.expiryText, { color: "#FFFFFF" }]}>
+                  Expires on May 05
+                </Text>
+
+              </View>
+
+            </TouchableOpacity>
+
+
+            {/* ==================================================
+                SCRATCH CARD HEADER
+            ================================================== */}
+
+            <View style={styles.scratchHeader}>
+
+              <Text style={[styles.scratchTitle, { color: theme.primary }]}>
+                Scratch Card
+              </Text>
+
+              <TouchableOpacity
+                onPress={() => router.push("/all-scratch-cards")}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.viewAllText, { color: theme.primary }]}>
+                  View all
+                </Text>
+              </TouchableOpacity>
+
+            </View>
+
+
+            {/* ==================================================
+                SCRATCH CARDS
+            ================================================== */}
+
+            <View style={styles.cardsContainer}>
+
+              {[1, 2, 3, 4, 5, 6].map((cardId) => (
+                <TouchableOpacity
+                  key={cardId}
+                  style={[
+                    styles.scratchCard,
+                    {
+                      width: cardSize,
+                      height: cardSize,
+                      backgroundColor: theme.primary,
+                    },
+                  ]}
+                  onPress={() => router.push("/scratch-success")}
+                  activeOpacity={0.9}
+                >
+                  <ScratchCardDesign size={cardSize} theme={theme} />
+                </TouchableOpacity>
+              ))}
+
+            </View>
+
+
+            {/* Extra bottom space */}
+            <View style={styles.bottomSpace} />
+
+          </ScrollView>
+
+
+          {/* ==================================================
+              BOTTOM NAVIGATION
+          ================================================== */}
+
+          <BottomFooter activeTab="rewards" />
 
         </View>
-
-      </View>
+      </LinearGradient>
     </SafeAreaView>
   );
 }
 
 
 // ============================================================
-// SCRATCH CARD DESIGN
+// OPTIMIZED SCRATCH CARD DESIGN
 // ============================================================
 
-function ScratchCardDesign({
+const ScratchCardDesign = React.memo(function ScratchCardDesign({
   size,
+  theme,
 }: {
   size: number;
+  theme: any;
 }) {
-
-  /*
-   * Center of the card.
-   *
-   * Example:
-   * 170px card → center = 85px
-   */
   const center = size / 2;
 
-  /*
-   * These rings create the many small squares
-   * around the gift.
-   */
+  // Light, elegant scattered particles to ensure clean UI
   const rings = [
-    {
-      radius: size * 0.12,
-      count: 12,
-      squareSize: 3,
-    },
-    {
-      radius: size * 0.19,
-      count: 16,
-      squareSize: 3,
-    },
-    {
-      radius: size * 0.27,
-      count: 20,
-      squareSize: 4,
-    },
-    {
-      radius: size * 0.35,
-      count: 24,
-      squareSize: 4,
-    },
-    {
-      radius: size * 0.43,
-      count: 28,
-      squareSize: 5,
-    },
-    {
-      radius: size * 0.50,
-      count: 32,
-      squareSize: 5,
-    },
-    {
-      radius: size * 0.56,
-      count: 34,
-      squareSize: 6,
-    },
+    { radius: size * 0.22, count: 5, squareSize: 3 },
+    { radius: size * 0.40, count: 7, squareSize: 4 },
   ];
-
 
   const squares: React.ReactNode[] = [];
 
-
-  /*
-   * Generate all squares.
-   */
   rings.forEach((ring, ringIndex) => {
-
     for (let i = 0; i < ring.count; i++) {
-
-      const angle =
-        (i / ring.count) *
-        Math.PI *
-        2 +
-        ringIndex * 0.13;
-
-
-      const x =
-        center +
-        Math.cos(angle) *
-        ring.radius;
-
-
-      const y =
-        center +
-        Math.sin(angle) *
-        ring.radius;
-
+      const angle = (i / ring.count) * Math.PI * 2 + ringIndex * 0.2;
+      const x = center + Math.cos(angle) * ring.radius;
+      const y = center + Math.sin(angle) * ring.radius;
 
       squares.push(
         <View
           key={`${ringIndex}-${i}`}
           style={{
             position: "absolute",
-
-            left:
-              x -
-              ring.squareSize / 2,
-
-            top:
-              y -
-              ring.squareSize / 2,
-
+            left: x - ring.squareSize / 2,
+            top: y - ring.squareSize / 2,
             width: ring.squareSize,
-
             height: ring.squareSize,
-
-            backgroundColor: "#D13C77",
-
-            opacity:
-              0.35 +
-              ringIndex * 0.04,
-
-            transform: [
-              {
-                rotate: `${(i * 17) % 45
-                  }deg`,
-              },
-            ],
+            backgroundColor: "#FFFFFF",
+            opacity: 0.4 + ringIndex * 0.08,
+            transform: [{ rotate: `${(i * 17) % 45}deg` }],
           }}
         />
       );
     }
   });
-
-
-  /*
-   * Additional random-looking squares.
-   *
-   * These make the card look closer to
-   * the reference image instead of
-   * looking like perfect circles.
-   */
-  const extraSquares = [
-    [0.10, 0.20, 5],
-    [0.18, 0.36, 4],
-    [0.10, 0.62, 6],
-    [0.20, 0.80, 5],
-
-    [0.32, 0.12, 5],
-    [0.48, 0.08, 4],
-    [0.68, 0.12, 6],
-    [0.82, 0.25, 5],
-
-    [0.90, 0.46, 6],
-    [0.84, 0.65, 5],
-    [0.74, 0.84, 4],
-    [0.50, 0.90, 6],
-
-    [0.30, 0.87, 5],
-    [0.12, 0.75, 4],
-  ];
-
-
-  extraSquares.forEach(
-    ([x, y, squareSize], index) => {
-
-      squares.push(
-        <View
-          key={`extra-${index}`}
-          style={{
-            position: "absolute",
-
-            left:
-              size * x -
-              squareSize / 2,
-
-            top:
-              size * y -
-              squareSize / 2,
-
-            width: squareSize,
-
-            height: squareSize,
-
-            backgroundColor: "#D13C77",
-
-            opacity: 0.55,
-          }}
-        />
-      );
-    }
-  );
-
 
   return (
     <View
@@ -664,6 +363,7 @@ function ScratchCardDesign({
           {
             width: size,
             height: size,
+            backgroundColor: theme.primary,
           },
         ]}
       />
@@ -682,6 +382,8 @@ function ScratchCardDesign({
             borderRadius: size * 0.44,
             left: size * 0.06,
             top: size * 0.06,
+            backgroundColor: "#FFFFFF",
+            opacity: 0.2,
           },
         ]}
       />
@@ -695,6 +397,8 @@ function ScratchCardDesign({
             borderRadius: size * 0.34,
             left: size * 0.16,
             top: size * 0.16,
+            backgroundColor: "#FFFFFF",
+            opacity: 0.25,
           },
         ]}
       />
@@ -708,6 +412,8 @@ function ScratchCardDesign({
             borderRadius: size * 0.225,
             left: size * 0.275,
             top: size * 0.275,
+            backgroundColor: "#FFFFFF",
+            opacity: 0.3,
           },
         ]}
       />
@@ -735,65 +441,27 @@ function ScratchCardDesign({
           SMALL DOTS
       ================================================== */}
 
-      <View
-        style={[
-          styles.smallDot,
-          {
-            left: size * 0.10,
-            top: size * 0.09,
-          },
-        ]}
-      />
-
-      <View
-        style={[
-          styles.smallDot,
-          {
-            left: size * 0.86,
-            top: size * 0.15,
-          },
-        ]}
-      />
-
-      <View
-        style={[
-          styles.smallDot,
-          {
-            left: size * 0.08,
-            top: size * 0.48,
-          },
-        ]}
-      />
-
-      <View
-        style={[
-          styles.smallDot,
-          {
-            left: size * 0.88,
-            top: size * 0.52,
-          },
-        ]}
-      />
-
-      <View
-        style={[
-          styles.smallDot,
-          {
-            left: size * 0.20,
-            top: size * 0.82,
-          },
-        ]}
-      />
-
-      <View
-        style={[
-          styles.smallDot,
-          {
-            left: size * 0.76,
-            top: size * 0.82,
-          },
-        ]}
-      />
+      {[
+        [0.10, 0.09],
+        [0.86, 0.15],
+        [0.08, 0.48],
+        [0.88, 0.52],
+        [0.20, 0.82],
+        [0.76, 0.82],
+      ].map(([x, y], idx) => (
+        <View
+          key={idx}
+          style={[
+            styles.smallDot,
+            {
+              left: size * x,
+              top: size * y,
+              backgroundColor: "#FFFFFF",
+              opacity: 0.6,
+            },
+          ]}
+        />
+      ))}
 
 
       {/* ==================================================
@@ -806,7 +474,6 @@ function ScratchCardDesign({
           {
             width: size * 0.55,
             height: size * 0.55,
-
             left: size * 0.225,
             top: size * 0.225,
           },
@@ -816,14 +483,14 @@ function ScratchCardDesign({
         <Ionicons
           name="gift"
           size={size * 0.43}
-          color="#D42670"
+          color="#FFFFFF"
         />
 
       </View>
 
     </View>
   );
-}
+});
 
 
 // ============================================================

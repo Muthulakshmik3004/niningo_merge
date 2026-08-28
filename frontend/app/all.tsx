@@ -31,10 +31,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import { getUsername } from "../services/session";
 import {
   fetchContacts,
+  createContact,
   ContactItem,
 } from "../services/api";
 
 import BACKEND_URL from "../config";
+import { useTheme } from "../constants/ThemeContext";
+import BottomFooter from "../components/BottomFooter";
 
 /* =========================================================
    OPTIONAL EXPO CONTACTS MODULE
@@ -59,6 +62,7 @@ interface RegisteredContact {
   name: string;
   username: string;
   phone_number: string;
+  profile_image?: string;
 }
 
 /* =========================================================
@@ -66,6 +70,7 @@ interface RegisteredContact {
    ========================================================= */
 
 export default function TaskScreen() {
+  const { theme } = useTheme();
   /* =======================================================
      GENERAL TASK / CONTACT STATE
      ======================================================= */
@@ -93,6 +98,7 @@ export default function TaskScreen() {
 
   const [registeredContacts, setRegisteredContacts] =
     useState<RegisteredContact[]>([]);
+  const [connectedMap, setConnectedMap] = useState<Record<string, boolean>>({});
 
   /* =======================================================
      LOAD CONTACT DATA FROM BACKEND
@@ -119,7 +125,7 @@ export default function TaskScreen() {
 
       setError(
         e?.message ||
-          "Could not load contacts from the server"
+        "Could not load contacts from the server"
       );
     } finally {
       setLoading(false);
@@ -201,7 +207,7 @@ export default function TaskScreen() {
         if (
           !Contacts ||
           typeof Contacts.getPermissionsAsync !==
-            "function"
+          "function"
         ) {
           return;
         }
@@ -228,9 +234,9 @@ export default function TaskScreen() {
           await Contacts.getContactsAsync({
             fields: Contacts.Fields
               ? [
-                  Contacts.Fields.Name,
-                  Contacts.Fields.PhoneNumbers,
-                ]
+                Contacts.Fields.Name,
+                Contacts.Fields.PhoneNumbers,
+              ]
               : undefined,
           });
 
@@ -310,7 +316,7 @@ export default function TaskScreen() {
       if (
         !Contacts ||
         typeof Contacts.requestPermissionsAsync !==
-          "function"
+        "function"
       ) {
         Alert.alert(
           "Feature Notice",
@@ -352,9 +358,9 @@ export default function TaskScreen() {
       const fieldsToGet =
         Contacts.Fields
           ? [
-              Contacts.Fields.Name,
-              Contacts.Fields.PhoneNumbers,
-            ]
+            Contacts.Fields.Name,
+            Contacts.Fields.PhoneNumbers,
+          ]
           : undefined;
 
       const { data: deviceContacts } =
@@ -405,13 +411,15 @@ export default function TaskScreen() {
        * Remove duplicate phone numbers.
        */
 
-      const uniqueNumbers = [
-        ...new Set(extractedNumbers),
-      ];
+      const uniqueNumbers = Array.from(
+        new Set(extractedNumbers)
+      );
 
       /*
        * Send numbers to backend.
        */
+
+      const currentOwner = await getUsername();
 
       const response = await fetch(
         `${BACKEND_URL}/app/match-contacts/`,
@@ -422,6 +430,7 @@ export default function TaskScreen() {
           },
           body: JSON.stringify({
             phone_numbers: uniqueNumbers,
+            username: currentOwner || "",
           }),
         }
       );
@@ -432,14 +441,18 @@ export default function TaskScreen() {
         response.ok &&
         result.success
       ) {
-        setRegisteredContacts(
-          result.contacts || []
+        const rawFriends = result.friends || result.contacts || [];
+        const filteredFriends = rawFriends.filter(
+          (f: any) =>
+            (f.username || "").trim().toLowerCase() !==
+            (currentOwner || "").trim().toLowerCase()
         );
+        setRegisteredContacts(filteredFriends);
       } else {
         Alert.alert(
           "Error",
           result.error ||
-            "Could not match contacts."
+          "Could not match contacts."
         );
       }
     } catch (err: any) {
@@ -451,10 +464,57 @@ export default function TaskScreen() {
       Alert.alert(
         "Error",
         err?.message ||
-          "An error occurred while loading contacts."
+        "An error occurred while loading contacts."
       );
     } finally {
       setFriendsLoading(false);
+    }
+  };
+
+  const handleConnectUser = async (contact: RegisteredContact) => {
+    const key = (contact.username || contact.name || "").toLowerCase();
+
+    // Optimistically change button to [Message] instantly in the modal UI
+    setConnectedMap((prev) => ({ ...prev, [key]: true }));
+
+    try {
+      const owner = await getUsername();
+      if (!owner) {
+        Alert.alert("Login Required", "Please log in first.");
+        setConnectedMap((prev) => ({ ...prev, [key]: false }));
+        return;
+      }
+
+      const displayName = contact.name || contact.username || "Niningo User";
+
+      const res = await fetch(`${BACKEND_URL}/app/contacts/connect/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          owner_username: owner,
+          friend_username: contact.username || contact.name || "",
+        }),
+      });
+
+      const resData = await res.json();
+
+      if (!res.ok || !resData.success) {
+        // Fallback to createContact if connect endpoint returned error
+        await createContact({
+          owner_username: owner,
+          name: displayName,
+          target_username: contact.username || "",
+          msg: "Connected on Niningo",
+          time: "Just now",
+        });
+      }
+
+      // Reload contact list in background
+      await loadData();
+    } catch (err: any) {
+      console.error("Connect error:", err);
+      setConnectedMap((prev) => ({ ...prev, [key]: false }));
+      Alert.alert("Error", "Could not connect with user.");
     }
   };
 
@@ -494,14 +554,13 @@ export default function TaskScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1 }}
-      edges={["left", "right", "bottom"]}
+      style={{ flex: 1, backgroundColor: theme.gradient[0] }}
+      edges={["top", "left", "right", "bottom"]}
     >
       <LinearGradient
-        colors={["#FFD7F8", "#FFF7FD"]}
+        colors={theme.gradient}
         style={{
           flex: 1,
-          paddingTop: 38,
           paddingHorizontal: 15,
         }}
       >
@@ -510,7 +569,7 @@ export default function TaskScreen() {
             ================================================= */}
 
         <View className="flex-row justify-between items-center mb-[15px]">
-          <Text className="text-[34px] font-bold text-[#B84CE8]">
+          <Text className="text-[34px] font-bold" style={{ color: theme.primary }}>
             Task
           </Text>
 
@@ -519,15 +578,16 @@ export default function TaskScreen() {
 
             <TouchableOpacity
               onPress={handleFindFriends}
-              className="bg-[#F1C2F7] border border-[#B37BD8] px-[12px] py-[6px] rounded-[18px] flex-row items-center"
+              style={{ backgroundColor: theme.primary + "22", borderColor: theme.primary }}
+              className="border px-[12px] py-[6px] rounded-[18px] flex-row items-center"
             >
               <Ionicons
                 name="people"
                 size={18}
-                color="#7A2BE2"
+                color={theme.primary}
               />
 
-              <Text className="ml-[6px] text-[13px] font-bold text-[#7A2BE2]">
+              <Text className="ml-[6px] text-[13px] font-bold" style={{ color: theme.primary }}>
                 Find Friends
               </Text>
             </TouchableOpacity>
@@ -607,18 +667,15 @@ export default function TaskScreen() {
                   router.push("/groups");
                 }
               }}
-              className={`px-[18px] py-[7px] rounded-[18px] border border-[#B37BD8] ${
-                selected === item
-                  ? "bg-[#F1C2F7]"
-                  : "bg-[#FFF]"
-              }`}
+              style={{
+                backgroundColor: selected === item ? theme.primary : "#FFFFFF",
+                borderColor: theme.primary,
+              }}
+              className="px-[18px] py-[7px] rounded-[18px] border"
             >
               <Text
                 style={{
-                  color:
-                    selected === item
-                      ? "#000"
-                      : "#444",
+                  color: selected === item ? "#FFF" : theme.primary,
                   fontWeight: "600",
                 }}
               >
@@ -670,7 +727,7 @@ export default function TaskScreen() {
                 <Ionicons
                   name="people-outline"
                   size={55}
-                  color="#D9A0F0"
+                  color={theme.primary}
                 />
 
                 <Text className="text-center text-[17px] font-bold text-[#555] mt-[15px]">
@@ -684,16 +741,29 @@ export default function TaskScreen() {
 
                 <TouchableOpacity
                   onPress={handleFindFriends}
-                  className="mt-[18px] bg-[#F1C2F7] px-[24px] py-[10px] rounded-[20px]"
+                  style={{ backgroundColor: theme.primary }}
+                  className="mt-[18px] px-[24px] py-[10px] rounded-[20px]"
                 >
-                  <Text className="text-[#7A2BE2] font-bold">
+                  <Text className="text-white font-bold">
                     Find Friends
                   </Text>
                 </TouchableOpacity>
               </View>
             }
             renderItem={({ item }) => (
-              <TouchableOpacity className="flex-row items-center py-[12px]">
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: "/chat",
+                    params: {
+                      username: item.username || item.name,
+                      name: item.name,
+                      image: item.image || "",
+                    },
+                  })
+                }
+                className="flex-row items-center py-[12px]"
+              >
                 {/* AVATAR */}
 
                 {item.image ? (
@@ -761,7 +831,7 @@ export default function TaskScreen() {
           onPress={handleFindFriends}
         >
           <LinearGradient
-            colors={["#F553E7", "#6B63FF"]}
+            colors={[theme.primary, theme.primary]}
             style={{
               width: 60,
               height: 60,
@@ -782,59 +852,7 @@ export default function TaskScreen() {
             BOTTOM NAVIGATION
             ================================================= */}
 
-        <View className="absolute left-0 right-0 bottom-0 h-[60px] flex-row justify-around items-center bg-white rounded-t-[25px]">
-          {/* TASK */}
-
-          <TouchableOpacity>
-            <Ionicons
-              name="document-text-outline"
-              size={28}
-              color="#777"
-            />
-          </TouchableOpacity>
-
-          {/* STATUS */}
-
-          <TouchableOpacity
-            onPress={() =>
-              router.push("/status")
-            }
-          >
-            <Zocial
-              name="statusnet"
-              size={28}
-              color="#777"
-            />
-          </TouchableOpacity>
-
-          {/* REWARDS */}
-
-          <TouchableOpacity
-            onPress={() =>
-              router.push("/rewards")
-            }
-          >
-            <Ionicons
-              name="gift-outline"
-              size={28}
-              color="#777"
-            />
-          </TouchableOpacity>
-
-          {/* PROFILE */}
-
-          <TouchableOpacity
-            onPress={() =>
-              router.push("/profile")
-            }
-          >
-            <Ionicons
-              name="person-outline"
-              size={28}
-              color="#777"
-            />
-          </TouchableOpacity>
-        </View>
+        <BottomFooter activeTab="all" />
 
         {/* =================================================
             REGISTERED FRIENDS MODAL
@@ -849,7 +867,7 @@ export default function TaskScreen() {
           }
         >
           <View className="flex-1 bg-black/50 justify-end">
-            <View className="bg-[#FFF7FD] rounded-t-[30px] h-[75%] p-[20px]">
+            <View style={{ backgroundColor: theme.gradient[1] || "#FFF" }} className="rounded-t-[30px] h-[75%] p-[20px]">
               {/* MODAL HEADER */}
 
               <View className="flex-row justify-between items-center mb-[15px]">
@@ -857,7 +875,7 @@ export default function TaskScreen() {
                   <Ionicons
                     name="people"
                     size={26}
-                    color="#B84CE8"
+                    color={theme.primary}
                   />
 
                   <Text className="text-[22px] font-bold text-[#111] ml-[10px]">
@@ -884,10 +902,10 @@ export default function TaskScreen() {
                 <View className="flex-1 justify-center items-center">
                   <ActivityIndicator
                     size="large"
-                    color="#B84CE8"
+                    color={theme.primary}
                   />
 
-                  <Text className="mt-[12px] text-[#7A2BE2] font-semibold text-center">
+                  <Text style={{ color: theme.primary }} className="mt-[12px] font-semibold text-center">
                     Matching contacts with
                     Niningo users...
                   </Text>
@@ -900,7 +918,7 @@ export default function TaskScreen() {
                   <Ionicons
                     name="person-add-outline"
                     size={60}
-                    color="#D348F7"
+                    color={theme.primary}
                   />
 
                   <Text className="text-[18px] font-bold text-[#333] mt-[15px] text-center">
@@ -916,9 +934,10 @@ export default function TaskScreen() {
 
                   <TouchableOpacity
                     onPress={handleFindFriends}
-                    className="mt-[20px] bg-[#F1C2F7] px-[24px] py-[10px] rounded-[20px]"
+                    style={{ backgroundColor: theme.primary + "25" }}
+                    className="mt-[20px] px-[24px] py-[10px] rounded-[20px]"
                   >
-                    <Text className="text-[#7A2BE2] font-bold">
+                    <Text style={{ color: theme.primary }} className="font-bold">
                       Try Again
                     </Text>
                   </TouchableOpacity>
@@ -938,14 +957,14 @@ export default function TaskScreen() {
                     false
                   }
                   renderItem={({ item }) => (
-                    <View className="flex-row items-center bg-white p-[14px] rounded-[20px] mb-[10px] border border-[#F1C2F7]">
+                    <View style={{ borderColor: theme.primary + "40" }} className="flex-row items-center bg-white p-[14px] rounded-[20px] mb-[10px] border">
                       {/* AVATAR */}
 
-                      <View className="w-[50px] h-[50px] rounded-[25px] bg-[#F1C2F7] justify-center items-center">
+                      <View style={{ backgroundColor: theme.primary + "20" }} className="w-[50px] h-[50px] rounded-[25px] justify-center items-center">
                         <FontAwesome
                           name="user"
                           size={24}
-                          color="#7A2BE2"
+                          color={theme.primary}
                         />
                       </View>
 
@@ -957,39 +976,70 @@ export default function TaskScreen() {
                             "Niningo User"}
                         </Text>
 
-                        <Text className="text-[13px] text-[#B84CE8]">
+                        <Text style={{ color: theme.primary }} className="text-[13px]">
                           {item.username
                             ? `@${item.username}`
                             : item.phone_number}
                         </Text>
                       </View>
 
-                      {/* CONNECT */}
+                      {/* CONNECT / MESSAGE */}
 
-                      <TouchableOpacity
-                        onPress={() => {
-                          /*
-                           * Your existing code did not yet
-                           * implement the actual connection
-                           * API, so this button is intentionally
-                           * left ready for that functionality.
-                           */
-
-                          Alert.alert(
-                            "Connect",
-                            `Connect with ${
-                              item.name ||
-                              item.username ||
-                              "this user"
-                            }`
+                      {connectedMap[(item.username || item.name || "").toLowerCase()] ||
+                        data.some((c) => {
+                          const targetU = (c.username || "").toLowerCase();
+                          const itemU = (item.username || "").toLowerCase();
+                          const cName = (c.name || "").toLowerCase();
+                          const itemName = (item.name || "").toLowerCase();
+                          return (
+                            (targetU && itemU && targetU === itemU) ||
+                            (cName && itemName && cName === itemName) ||
+                            (cName && itemU && cName === itemU)
                           );
-                        }}
-                        className="bg-[#7A2BE2] px-[16px] py-[8px] rounded-[15px]"
-                      >
-                        <Text className="text-white font-bold text-[13px]">
-                          Connect
-                        </Text>
-                      </TouchableOpacity>
+                        }) ? (
+                        <TouchableOpacity
+                          onPress={() => {
+                            setShowFriendsModal(false);
+                            router.push({
+                              pathname: "/chat",
+                              params: {
+                                username:
+                                  item.username ||
+                                  item.name,
+                                name:
+                                  item.name ||
+                                  item.username,
+                                image:
+                                  item.profile_image ||
+                                  "",
+                              },
+                            });
+                          }}
+                          className="bg-[#25D366] px-[14px] py-[8px] rounded-[15px] flex-row items-center"
+                        >
+                          <Ionicons
+                            name="chatbubble-ellipses"
+                            size={14}
+                            color="#fff"
+                            style={{ marginRight: 4 }}
+                          />
+                          <Text className="text-white font-bold text-[13px]">
+                            Message
+                          </Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          onPress={() =>
+                            handleConnectUser(item)
+                          }
+                          style={{ backgroundColor: theme.primary }}
+                          className="px-[16px] py-[8px] rounded-[15px]"
+                        >
+                          <Text className="text-white font-bold text-[13px]">
+                            Connect
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   )}
                 />

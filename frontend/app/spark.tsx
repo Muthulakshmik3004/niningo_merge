@@ -1,9 +1,4 @@
-import React, {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -15,47 +10,33 @@ import {
   Animated,
   Alert,
   Dimensions,
+  StatusBar,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 
 import BACKEND_URL from "../config";
-
+import { useTheme } from "../constants/ThemeContext";
 
 const { width } = Dimensions.get("window");
 
 const STORAGE_KEY = "niningo_spark_progress";
 const START_DATE_KEY = "niningo_spark_start_date";
 
-/*
- * =========================================================
+/* =========================================================
  * MISSIONS
- * =========================================================
- */
+ * ========================================================= */
 
 const missions = [
-  {
-    title: "Early\nWake-up",
-    image: require("../assets/images/earlywalkup.jpg"),
-  },
-  {
-    title: "Hydration",
-    image: require("../assets/images/hydrations.jpg"),
-  },
-  {
-    title: "Physical\nActivity",
-    image: require("../assets/images/physical-activity.webp"),
-  },
-  {
-    title: "Study /\nWork",
-    image: require("../assets/images/study-work.jpg"),
-  },
-  {
-    title: "Sleep On\nTime",
-    image: require("../assets/images/sleep-on-time.jpg"),
-  },
+  { title: "Early\nWake-up", image: require("../assets/images/earlywalkup.jpg") },
+  { title: "Hydration", image: require("../assets/images/hydrations.jpg") },
+  { title: "Physical\nActivity", image: require("../assets/images/physical-activity.webp") },
+  { title: "Study /\nWork", image: require("../assets/images/study-work.jpg") },
+  { title: "Sleep On\nTime", image: require("../assets/images/sleep-on-time.jpg") },
 ];
 
 const taskNames = [
@@ -75,265 +56,123 @@ const slogans = [
   "Perfect Day!",
 ];
 
+const getSlogan = (sparkCount: number) => {
+  const safeCount = Math.max(0, Math.min(sparkCount, 5));
+  return slogans[safeCount];
+};
+
 const monthNames = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
 
-const weekNames = [
-  "Mo",
-  "Tu",
-  "We",
-  "Th",
-  "Fr",
-  "Sa",
-  "Su",
-];
+const weekNames = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
-/*
- * =========================================================
- * TYPES
- * =========================================================
- */
+type TaskProgress = { [taskIndex: string]: string };
+type SparkProgress = { [date: string]: TaskProgress };
 
-type TaskProgress = {
-  [taskIndex: string]: string;
-};
-
-type SparkProgress = {
-  [date: string]: TaskProgress;
-};
-
-/*
- * =========================================================
+/* =========================================================
  * DATE HELPERS
- * =========================================================
- */
+ * ========================================================= */
 
 const normalizeDate = (date: Date) =>
-  new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate()
-  );
+  new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
 const dateKey = (date: Date) => {
   const year = date.getFullYear();
-
-  const month = String(
-    date.getMonth() + 1
-  ).padStart(2, "0");
-
-  const day = String(
-    date.getDate()
-  ).padStart(2, "0");
-
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
 
 const parseDateKey = (value: string) => {
-  const [year, month, day] = value
-    .split("-")
-    .map(Number);
-
-  return new Date(
-    year,
-    month - 1,
-    day
-  );
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
 };
 
 const formatDisplayDate = (date: Date) =>
-  date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
-const getSlogan = (sparkCount: number) => {
-  const safeCount = Math.max(
-    0,
-    Math.min(sparkCount, 5)
-  );
-
-  return slogans[safeCount];
-};
-
-/*
- * =========================================================
+/* =========================================================
  * BACKEND HELPERS
- * =========================================================
- */
+ * ========================================================= */
 
 /*
  * Get username from the existing app session.
- *
  * Different parts of the app may store session data
  * differently, so we check a few common keys.
  */
-const getStoredUsername = async (): Promise<
-  string | null
-> => {
+const getStoredUsername = async (): Promise<string | null> => {
   try {
-    /*
-     * Direct username keys
-     */
-    const directKeys = [
-      "username",
-      "niningo_username",
-      "user_username",
-    ];
+    const directKeys = ["username", "niningo_username", "user_username"];
 
     for (const key of directKeys) {
-      const value =
-        await AsyncStorage.getItem(key);
-
-      if (
-        value &&
-        value.trim().length > 0
-      ) {
+      const value = await AsyncStorage.getItem(key);
+      if (value && value.trim().length > 0) {
         return value.trim();
       }
     }
 
-    /*
-     * Session keys
-     */
-    const sessionKeys = [
-      "session",
-      "niningo_session",
-      "user_session",
-    ];
+    const sessionKeys = ["session", "niningo_session", "user_session"];
 
     for (const key of sessionKeys) {
-      const value =
-        await AsyncStorage.getItem(key);
-
+      const value = await AsyncStorage.getItem(key);
       if (!value) continue;
 
       try {
-        const parsed =
-          JSON.parse(value);
-
+        const parsed = JSON.parse(value);
         const username =
-          parsed?.username ||
-          parsed?.user?.username ||
-          parsed?.profile?.username;
+          parsed?.username || parsed?.user?.username || parsed?.profile?.username;
 
-        if (
-          username &&
-          String(username).trim()
-            .length > 0
-        ) {
+        if (username && String(username).trim().length > 0) {
           return String(username).trim();
         }
       } catch {
-        /*
-         * Ignore invalid JSON and
-         * continue checking other keys.
-         */
+        // Ignore invalid JSON and continue checking other keys.
       }
     }
 
     return null;
   } catch (error) {
-    console.log(
-      "Get stored username error:",
-      error
-    );
-
+    console.log("Get stored username error:", error);
     return null;
   }
 };
 
 /*
- * =========================================================
- * CONVERT BACKEND DATA → EXISTING UI FORMAT
- * =========================================================
- *
- * Backend stores:
- *
- * tasks: {
- *   "Hydration": {
- *      completed: true,
- *      photo: "..."
- *   }
- * }
- *
+ * Backend stores tasks as:
+ *   { "Hydration": { completed: true, photo: "..." } }
  * Existing UI uses:
- *
- * {
- *   "0": "photo-uri",
- *   "1": "photo-uri"
- * }
+ *   { "0": "photo-uri", "1": "photo-uri" }
  */
-
-const convertBackendTasksToUI = (
-  tasks: any
-): TaskProgress => {
+const convertBackendTasksToUI = (tasks: any): TaskProgress => {
   const result: TaskProgress = {};
 
-  if (
-    !tasks ||
-    typeof tasks !== "object"
-  ) {
+  if (!tasks || typeof tasks !== "object") {
     return result;
   }
 
-  Object.entries(tasks).forEach(
-    ([taskName, taskValue]: [
-      string,
-      any
-    ]) => {
-      const taskIndex =
-        taskNames.indexOf(taskName);
+  Object.entries(tasks).forEach(([taskName, taskValue]: [string, any]) => {
+    const taskIndex = taskNames.indexOf(taskName);
+    if (taskIndex === -1) return;
 
-      if (taskIndex === -1) {
-        return;
-      }
+    let photo = "";
 
-      let photo = "";
-
-      if (
-        typeof taskValue === "string"
-      ) {
-        photo = taskValue;
-      } else if (
-        taskValue &&
-        typeof taskValue === "object"
-      ) {
-        photo =
-          taskValue.photo || "";
-      }
-
-      if (photo) {
-        result[
-          String(taskIndex)
-        ] = photo;
-      }
+    if (typeof taskValue === "string") {
+      photo = taskValue;
+    } else if (taskValue && typeof taskValue === "object") {
+      photo = taskValue.photo || "";
     }
-  );
+
+    if (photo) {
+      result[String(taskIndex)] = photo;
+    }
+  });
 
   return result;
 };
 
-/*
- * Convert backend result list to
- * existing SparkProgress state.
- */
-const convertBackendResultsToUI = (
-  results: any[]
-): SparkProgress => {
+const convertBackendResultsToUI = (results: any[]): SparkProgress => {
   const converted: SparkProgress = {};
 
   if (!Array.isArray(results)) {
@@ -341,108 +180,56 @@ const convertBackendResultsToUI = (
   }
 
   results.forEach((item) => {
-    if (
-      !item?.date
-    ) {
-      return;
-    }
-
-    converted[item.date] =
-      convertBackendTasksToUI(
-        item.tasks
-      );
+    if (!item?.date) return;
+    converted[item.date] = convertBackendTasksToUI(item.tasks);
   });
 
   return converted;
 };
 
-/*
- * =========================================================
+/* =========================================================
  * SPARK COMPONENT
- * =========================================================
- */
+ * ========================================================= */
 
 export default function Spark() {
-  // const today = normalizeDate(
-  //   new Date()
-  // );
-  const today = normalizeDate(
-  new Date(2026, 7, 26)
-);
+  const { theme } = useTheme();
 
-  const todayKey =
-    dateKey(today);
+  // const today = normalizeDate(new Date());
+  const today = normalizeDate(new Date(2026, 7, 26));
+  const todayKey = dateKey(today);
 
-  const [startDate, setStartDate] =
-    useState<Date | null>(null);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
+  const [selectedYear, setSelectedYear] = useState(today.getFullYear());
 
-  const [selectedMonth, setSelectedMonth] =
-    useState(today.getMonth());
+  // Date whose missions/photos are currently being viewed.
+  const [selectedDateKey, setSelectedDateKey] = useState(todayKey);
 
-  const [selectedYear, setSelectedYear] =
-    useState(today.getFullYear());
+  // All date-wise Spark progress.
+  const [progress, setProgress] = useState<SparkProgress>({});
 
-  /*
-   * Date whose missions/photos
-   * are currently being viewed.
-   */
-  const [selectedDateKey, setSelectedDateKey] =
-    useState(todayKey);
+  // Logged-in username.
+  const [username, setUsername] = useState<string | null>(null);
 
-  /*
-   * All date-wise Spark progress.
-   */
-  const [progress, setProgress] =
-    useState<SparkProgress>({});
+  // Backend loading state.
+  const [loadingSpark, setLoadingSpark] = useState(true);
 
-  /*
-   * Logged-in username.
-   */
-  const [username, setUsername] =
-    useState<string | null>(null);
+  const [monthModal, setMonthModal] = useState(false);
+  const [yearModal, setYearModal] = useState(false);
+  const [sparkAnimation, setSparkAnimation] = useState(false);
 
-  /*
-   * Backend loading state.
-   */
-  const [loadingSpark, setLoadingSpark] =
-    useState(true);
+  // Heart-touch state for a pressed calendar cell.
+  const [pressedDateKey, setPressedDateKey] = useState<string | null>(null);
 
-  const [monthModal, setMonthModal] =
-    useState(false);
+  // Photo preview for past dates.
+  const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
-  const [yearModal, setYearModal] =
-    useState(false);
+  const scaleAnim = useRef(new Animated.Value(0.7)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
 
-  const [sparkAnimation, setSparkAnimation] =
-    useState(false);
-
-  /*
-   * HEART TOUCH STATE
-   */
-  const [pressedDateKey, setPressedDateKey] =
-    useState<string | null>(null);
-
-  /*
-   * PHOTO PREVIEW
-   */
-  const [previewPhoto, setPreviewPhoto] =
-    useState<string | null>(null);
-
-  const scaleAnim =
-    useRef(
-      new Animated.Value(0.7)
-    ).current;
-
-  const opacityAnim =
-    useRef(
-      new Animated.Value(0)
-    ).current;
-
-  /*
-   * =======================================================
+  /* =======================================================
    * INITIAL LOAD
-   * =======================================================
-   */
+   * ======================================================= */
 
   useEffect(() => {
     initializeSpark();
@@ -452,2131 +239,857 @@ export default function Spark() {
     try {
       setLoadingSpark(true);
 
-      /*
-       * Get username first.
-       */
-      const storedUsername =
-        await getStoredUsername();
+      // Get username first.
+      const storedUsername = await getStoredUsername();
+      setUsername(storedUsername);
 
-      setUsername(
-        storedUsername
-      );
+      // Load local data first so the UI stays responsive even
+      // when the backend is temporarily unavailable.
+      let localProgress: SparkProgress = {};
 
-      /*
-       * Load local data first.
-       *
-       * This keeps UI responsive even
-       * when backend is temporarily unavailable.
-       */
-      let localProgress: SparkProgress =
-        {};
-
-      const savedProgress =
-        await AsyncStorage.getItem(
-          STORAGE_KEY
-        );
+      const savedProgress = await AsyncStorage.getItem(STORAGE_KEY);
 
       if (savedProgress) {
         try {
-          localProgress =
-            JSON.parse(
-              savedProgress
-            );
+          localProgress = JSON.parse(savedProgress);
         } catch (error) {
-          console.log(
-            "Local Spark JSON parse error:",
-            error
-          );
+          console.log("Local Spark JSON parse error:", error);
         }
       }
 
-      /*
-       * Show local data immediately.
-       */
-      setProgress(
-        localProgress
-      );
+      setProgress(localProgress);
 
-      /*
-       * Start date.
-       */
-      let savedStartDate =
-        await AsyncStorage.getItem(
-          START_DATE_KEY
-        );
+      // Start date.
+      let savedStartDate = await AsyncStorage.getItem(START_DATE_KEY);
 
       if (!savedStartDate) {
-        savedStartDate =
-          todayKey;
-
-        await AsyncStorage.setItem(
-          START_DATE_KEY,
-          savedStartDate
-        );
+        savedStartDate = todayKey;
+        await AsyncStorage.setItem(START_DATE_KEY, savedStartDate);
       }
 
-      const parsedStartDate =
-        parseDateKey(
-          savedStartDate
-        );
+      const parsedStartDate = parseDateKey(savedStartDate);
+      setStartDate(normalizeDate(parsedStartDate));
 
-      setStartDate(
-        normalizeDate(
-          parsedStartDate
-        )
-      );
+      setSelectedMonth(today.getMonth());
+      setSelectedYear(today.getFullYear());
+      setSelectedDateKey(todayKey);
 
-      setSelectedMonth(
-        today.getMonth()
-      );
-
-      setSelectedYear(
-        today.getFullYear()
-      );
-
-      setSelectedDateKey(
-        todayKey
-      );
-
-      /*
-       * ===================================================
-       * LOAD FROM MONGODB
-       * ===================================================
-       */
+      // Load from MongoDB.
       if (storedUsername) {
-        await loadSparkFromBackend(
-          storedUsername
-        );
+        await loadSparkFromBackend(storedUsername);
       } else {
-        console.log(
-          "Spark: username not found. Using local data."
-        );
+        console.log("Spark: username not found. Using local data.");
       }
     } catch (error) {
-      console.log(
-        "Spark initialization error:",
-        error
-      );
+      console.log("Spark initialization error:", error);
     } finally {
       setLoadingSpark(false);
     }
   };
 
-  /*
-   * =======================================================
+  /* =======================================================
    * LOAD SPARK FROM BACKEND / MONGODB
-   * =======================================================
-   */
+   * ======================================================= */
 
-  const loadSparkFromBackend =
-    async (
-      currentUsername: string
-    ) => {
-      try {
-        const url =
-          `${BACKEND_URL}/app/api/spark/` +
-          `?username=${encodeURIComponent(
-            currentUsername
-          )}`;
+  const loadSparkFromBackend = async (currentUsername: string) => {
+    try {
+      const url =
+        `${BACKEND_URL}/app/api/spark/` +
+        `?username=${encodeURIComponent(currentUsername)}`;
 
-        console.log(
-          "🔥 Loading Spark from:",
-          url
-        );
+      console.log("🔥 Loading Spark from:", url);
 
-        const response =
-          await fetch(url, {
-            method: "GET",
-            headers: {
-              Accept:
-                "application/json",
-            },
-          });
+      const response = await fetch(url, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
 
-        const data =
-          await response.json();
+      const data = await response.json();
 
-        console.log(
-          "🔥 Spark backend response:",
-          JSON.stringify(
-            data,
-            null,
-            2
-          )
-        );
+      console.log("🔥 Spark backend response:", JSON.stringify(data, null, 2));
 
-        if (!response.ok) {
-          throw new Error(
-            data?.error ||
-              `HTTP ${response.status}`
-          );
-        }
-
-        const backendProgress =
-          convertBackendResultsToUI(
-            data?.results || []
-          );
-
-        /*
-         * Backend is the source of truth.
-         *
-         * But if backend has no records yet,
-         * keep local progress.
-         */
-        if (
-          Object.keys(
-            backendProgress
-          ).length > 0
-        ) {
-          setProgress(
-            backendProgress
-          );
-
-          /*
-           * Keep local cache synchronized.
-           */
-          await AsyncStorage.setItem(
-            STORAGE_KEY,
-            JSON.stringify(
-              backendProgress
-            )
-          );
-        }
-
-        console.log(
-          "✅ Spark loaded from MongoDB"
-        );
-      } catch (error) {
-        /*
-         * Backend failure should NOT
-         * destroy local UI data.
-         */
-        console.log(
-          "❌ Spark backend load error:",
-          error
-        );
-
-        console.log(
-          "Using local Spark data as fallback."
-        );
+      if (!response.ok) {
+        throw new Error(data?.error || `HTTP ${response.status}`);
       }
-    };
 
-  /*
-   * =======================================================
+      const backendProgress = convertBackendResultsToUI(data?.results || []);
+
+      // Backend is the source of truth, but if it has no records yet,
+      // keep the local progress instead of wiping it.
+      if (Object.keys(backendProgress).length > 0) {
+        setProgress(backendProgress);
+
+        // Keep local cache in sync.
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(backendProgress));
+      }
+
+      console.log("✅ Spark loaded from MongoDB");
+    } catch (error) {
+      // Backend failure should NOT destroy local UI data.
+      console.log("❌ Spark backend load error:", error);
+      console.log("Using local Spark data as fallback.");
+    }
+  };
+
+  /* =======================================================
    * SAVE LOCAL CACHE
-   * =======================================================
-   */
+   * ======================================================= */
 
-  const saveProgressLocal =
-    async (
-      newProgress: SparkProgress
-    ) => {
-      try {
-        await AsyncStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify(
-            newProgress
-          )
-        );
+  const saveProgressLocal = async (newProgress: SparkProgress) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newProgress));
+      console.log("✅ Local Spark cache saved");
+    } catch (error) {
+      console.log("Local Spark save error:", error);
+    }
+  };
 
-        console.log(
-          "✅ Local Spark cache saved"
-        );
-      } catch (error) {
-        console.log(
-          "Local Spark save error:",
-          error
-        );
-      }
-    };
+  /* =======================================================
+   * SAVE / DELETE ONE TASK IN MONGODB
+   * ======================================================= */
 
-  /*
-   * =======================================================
-   * SAVE ONE TASK TO MONGODB
-   * =======================================================
-   */
-
-  const saveTaskToBackend =
-    async (
-      targetDateKey: string,
-      taskIndex: number,
-      uri: string
-    ) => {
-      if (!username) {
-        console.log(
-          "Spark backend save skipped: username missing"
-        );
-
-        return false;
-      }
-
-      try {
-        const task =
-          taskNames[taskIndex];
-
-        const response =
-          await fetch(
-            `${BACKEND_URL}/app/api/spark/`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type":
-                  "application/json",
-                Accept:
-                  "application/json",
-              },
-              body: JSON.stringify({
-                username,
-                date: targetDateKey,
-                task,
-                completed: true,
-                photo: uri,
-              }),
-            }
-          );
-
-        const data =
-          await response.json();
-
-        console.log(
-          "🔥 Spark save response:",
-          JSON.stringify(
-            data,
-            null,
-            2
-          )
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            data?.error ||
-              `HTTP ${response.status}`
-          );
-        }
-
-        console.log(
-          `✅ ${task} saved to MongoDB for ${targetDateKey}`
-        );
-
-        return true;
-      } catch (error) {
-        console.log(
-          "❌ Spark backend save error:",
-          error
-        );
-
-        return false;
-      }
-    };
-
-  /*
-   * =======================================================
-   * DELETE ONE TASK FROM MONGODB
-   * =======================================================
-   */
-
-  const deleteTaskFromBackend =
-    async (
-      targetDateKey: string,
-      taskIndex: number
-    ) => {
-      if (!username) {
-        return false;
-      }
-
-      try {
-        const task =
-          taskNames[taskIndex];
-
-        const url =
-          `${BACKEND_URL}/app/api/spark/delete-task/` +
-          `?username=${encodeURIComponent(
-            username
-          )}` +
-          `&date=${encodeURIComponent(
-            targetDateKey
-          )}` +
-          `&task=${encodeURIComponent(
-            task
-          )}`;
-
-        const response =
-          await fetch(url, {
-            method: "DELETE",
-            headers: {
-              Accept:
-                "application/json",
-            },
-          });
-
-        const data =
-          await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            data?.error ||
-              `HTTP ${response.status}`
-          );
-        }
-
-        console.log(
-          `✅ ${task} deleted from MongoDB`
-        );
-
-        return true;
-      } catch (error) {
-        console.log(
-          "❌ Spark backend delete error:",
-          error
-        );
-
-        return false;
-      }
-    };
-
-  /*
-   * =======================================================
-   * SAVE PHOTO
-   * =======================================================
-   */
-
-  const updateTaskPhoto = async (
+  const saveTaskToBackend = async (
+    targetDateKey: string,
     taskIndex: number,
     uri: string
   ) => {
-    const targetDateKey =
-      selectedDateKey;
+    if (!username) {
+      console.log("Spark backend save skipped: username missing");
+      return false;
+    }
 
-    const targetDate =
-      parseDateKey(
-        targetDateKey
-      );
+    try {
+      const task = taskNames[taskIndex];
 
-    /*
-     * Future date protection.
-     */
+      const response = await fetch(`${BACKEND_URL}/app/api/spark/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          username,
+          date: targetDateKey,
+          task,
+          completed: true,
+          photo: uri,
+        }),
+      });
+
+      const data = await response.json();
+
+      console.log("🔥 Spark save response:", JSON.stringify(data, null, 2));
+
+      if (!response.ok) {
+        throw new Error(data?.error || `HTTP ${response.status}`);
+      }
+
+      console.log(`✅ ${task} saved to MongoDB for ${targetDateKey}`);
+      return true;
+    } catch (error) {
+      console.log("❌ Spark backend save error:", error);
+      return false;
+    }
+  };
+
+  const deleteTaskFromBackend = async (targetDateKey: string, taskIndex: number) => {
+    if (!username) return false;
+
+    try {
+      const task = taskNames[taskIndex];
+
+      const url =
+        `${BACKEND_URL}/app/api/spark/delete-task/` +
+        `?username=${encodeURIComponent(username)}` +
+        `&date=${encodeURIComponent(targetDateKey)}` +
+        `&task=${encodeURIComponent(task)}`;
+
+      const response = await fetch(url, {
+        method: "DELETE",
+        headers: { Accept: "application/json" },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || `HTTP ${response.status}`);
+      }
+
+      console.log(`✅ ${task} deleted from MongoDB`);
+      return true;
+    } catch (error) {
+      console.log("❌ Spark backend delete error:", error);
+      return false;
+    }
+  };
+
+  /* =======================================================
+   * SAVE PHOTO
+   * ======================================================= */
+
+  const updateTaskPhoto = async (taskIndex: number, uri: string) => {
+    const targetDateKey = selectedDateKey;
+    const targetDate = parseDateKey(targetDateKey);
+
     if (isFuture(targetDate)) {
-      Alert.alert(
-        "Not Available Yet",
-        "You cannot add tasks for a future date."
-      );
-
+      Alert.alert("Not Available Yet", "You cannot add tasks for a future date.");
       return;
     }
 
-    /*
-     * Past date protection.
-     */
-    if (
-      targetDateKey !==
-      todayKey
-    ) {
-      Alert.alert(
-        "Not Available",
-        "Missions can only be added on the current date."
-      );
-
+    if (targetDateKey !== todayKey) {
+      Alert.alert("Not Available", "Missions can only be added on the current date.");
       return;
     }
 
-    /*
-     * Update UI immediately.
-     */
-    const newProgress: SparkProgress =
-      {
-        ...progress,
+    // Update UI immediately.
+    const newProgress: SparkProgress = {
+      ...progress,
+      [targetDateKey]: {
+        ...(progress[targetDateKey] || {}),
+        [String(taskIndex)]: uri,
+      },
+    };
 
-        [targetDateKey]: {
-          ...(progress[
-            targetDateKey
-          ] || {}),
+    setProgress(newProgress);
+    await saveProgressLocal(newProgress);
 
-          [String(taskIndex)]:
-            uri,
-        },
-      };
-
-    setProgress(
-      newProgress
-    );
-
-    /*
-     * Save local cache immediately.
-     */
-    await saveProgressLocal(
-      newProgress
-    );
-
-    /*
-     * Save to MongoDB.
-     */
-    const saved =
-      await saveTaskToBackend(
-        targetDateKey,
-        taskIndex,
-        uri
-      );
+    const saved = await saveTaskToBackend(targetDateKey, taskIndex, uri);
 
     if (!saved) {
-      /*
-       * Keep UI/local cache.
-       *
-       * Backend can be retried
-       * when app is opened again.
-       */
-      console.log(
-        "⚠️ Saved locally, backend save failed."
-      );
+      // Keep the UI/local cache; backend can be retried next launch.
+      console.log("⚠️ Saved locally, backend save failed.");
     }
 
-    /*
-     * 5 tasks completed?
-     */
-    const updatedCount =
-      Object.keys(
-        newProgress[
-          targetDateKey
-        ] || {}
-      ).length;
+    // 5 tasks completed?
+    const updatedCount = Object.keys(newProgress[targetDateKey] || {}).length;
 
-    if (
-      updatedCount === 5
-    ) {
+    if (updatedCount === 5) {
       playSparkAnimation();
     }
 
-    console.log(
-      `📸 Photo saved for ${targetDateKey}`
-    );
+    console.log(`📸 Photo saved for ${targetDateKey}`);
   };
 
-  /*
-   * =======================================================
+  /* =======================================================
    * REMOVE PHOTO
-   * =======================================================
-   */
+   * ======================================================= */
 
-  const removePhoto = async (
-    taskIndex: number
-  ) => {
-    if (
-      selectedDateKey !==
-      todayKey
-    ) {
-      Alert.alert(
-        "Not Available",
-        "Past mission photos cannot be removed."
-      );
-
+  const removePhoto = async (taskIndex: number) => {
+    if (selectedDateKey !== todayKey) {
+      Alert.alert("Not Available", "Past mission photos cannot be removed.");
       return;
     }
 
     try {
-      const dateProgress =
-        {
-          ...(progress[
-            selectedDateKey
-          ] || {}),
-        };
+      const dateProgress = { ...(progress[selectedDateKey] || {}) };
+      delete dateProgress[String(taskIndex)];
 
-      delete dateProgress[
-        String(taskIndex)
-      ];
+      const newProgress: SparkProgress = { ...progress };
 
-      const newProgress: SparkProgress =
-        {
-          ...progress,
-        };
-
-      if (
-        Object.keys(
-          dateProgress
-        ).length === 0
-      ) {
-        delete newProgress[
-          selectedDateKey
-        ];
+      if (Object.keys(dateProgress).length === 0) {
+        delete newProgress[selectedDateKey];
       } else {
-        newProgress[
-          selectedDateKey
-        ] = dateProgress;
+        newProgress[selectedDateKey] = dateProgress;
       }
 
-      /*
-       * Update UI.
-       */
-      setProgress(
-        newProgress
-      );
+      setProgress(newProgress);
+      await saveProgressLocal(newProgress);
 
-      /*
-       * Update local cache.
-       */
-      await saveProgressLocal(
-        newProgress
-      );
-
-      /*
-       * Delete from MongoDB.
-       */
-      const deleted =
-        await deleteTaskFromBackend(
-          selectedDateKey,
-          taskIndex
-        );
+      const deleted = await deleteTaskFromBackend(selectedDateKey, taskIndex);
 
       if (!deleted) {
-        console.log(
-          "⚠️ Local photo removed but backend delete failed."
-        );
+        console.log("⚠️ Local photo removed but backend delete failed.");
       }
     } catch (error) {
-      console.log(
-        "Remove photo error:",
-        error
-      );
-
-      Alert.alert(
-        "Error",
-        "Could not remove the photo."
-      );
+      console.log("Remove photo error:", error);
+      Alert.alert("Error", "Could not remove the photo.");
     }
   };
 
-  /*
-   * =======================================================
+  /* =======================================================
    * DATE HELPERS
-   * =======================================================
-   */
+   * ======================================================= */
 
-  const isBeforeStart = (
-    date: Date
-  ) => {
-    if (!startDate) {
-      return false;
-    }
-
-    return (
-      normalizeDate(
-        date
-      ).getTime() <
-      normalizeDate(
-        startDate
-      ).getTime()
-    );
+  const isBeforeStart = (date: Date) => {
+    if (!startDate) return false;
+    return normalizeDate(date).getTime() < normalizeDate(startDate).getTime();
   };
 
-  const isFuture = (
-    date: Date
-  ) => {
-    return (
-      normalizeDate(
-        date
-      ).getTime() >
-      today.getTime()
-    );
+  const isFuture = (date: Date) => normalizeDate(date).getTime() > today.getTime();
+
+  const getTaskCount = (date: Date) => {
+    const key = dateKey(date);
+    return Object.keys(progress[key] || {}).length;
   };
 
-  /*
-   * =======================================================
-   * GET TASK COUNT
-   * =======================================================
-   */
+  const selectedDateProgress = progress[selectedDateKey] || {};
 
-  const getTaskCount = (
-    date: Date
-  ) => {
-    const key =
-      dateKey(date);
-
-    return Object.keys(
-      progress[key] || {}
-    ).length;
-  };
-
-  /*
-   * =======================================================
-   * JOURNEY DAY NUMBER
-   * =======================================================
-   */
-
-  const getJourneyDayNumber = (
-    date: Date
-  ) => {
-    if (!startDate) {
-      return 1;
-    }
-
-    const start =
-      normalizeDate(
-        startDate
-      );
-
-    const selected =
-      normalizeDate(date);
-
-    const difference =
-      selected.getTime() -
-      start.getTime();
-
-    const oneDay =
-      1000 *
-      60 *
-      60 *
-      24;
-
-    return (
-      Math.floor(
-        difference /
-          oneDay
-      ) + 1
-    );
-  };
-
-  /*
-   * =======================================================
-   * SELECTED DATE PROGRESS
-   * =======================================================
-   */
-
-  const selectedDateProgress =
-    progress[
-      selectedDateKey
-    ] || {};
-
-  /*
-   * =======================================================
+  /* =======================================================
    * OPEN CALENDAR DATE
-   * =======================================================
-   */
+   * ======================================================= */
 
-  const openDate = (
-    date: Date
-  ) => {
-    const selectedKey =
-      dateKey(date);
+  const openDate = (date: Date) => {
+    const selectedKey = dateKey(date);
 
     const hasSavedActivity =
-      Object.keys(
-        progress[
-          selectedKey
-        ] || {}
-      ).length > 0;
+      Object.keys(progress[selectedKey] || {}).length > 0;
 
-    /*
-     * Future date
-     */
+    // Future date.
     if (isFuture(date)) {
       Alert.alert(
         "Not Available Yet",
         "Tasks for future dates are not available yet. Come back on that day.",
         [{ text: "OK" }]
       );
-
       return;
     }
 
-    /*
-     * Before journey
-     */
-    if (
-      isBeforeStart(date) &&
-      !hasSavedActivity
-    ) {
+    // Before the journey started, with nothing saved there.
+    if (isBeforeStart(date) && !hasSavedActivity) {
       Alert.alert(
         "No Spark Activity",
         `Your Spark journey started on ${
-          startDate
-            ? formatDisplayDate(
-                startDate
-              )
-            : formatDisplayDate(
-                today
-              )
+          startDate ? formatDisplayDate(startDate) : formatDisplayDate(today)
         }. There are no task details available before that date.`,
         [{ text: "OK" }]
       );
-
       return;
     }
 
-    /*
-     * Remember selected date.
-     */
-    setSelectedDateKey(
-      selectedKey
-    );
+    // Remember selected date and move the calendar to match.
+    setSelectedDateKey(selectedKey);
+    setSelectedMonth(date.getMonth());
+    setSelectedYear(date.getFullYear());
 
-    /*
-     * Change calendar month/year.
-     */
-    setSelectedMonth(
-      date.getMonth()
-    );
-
-    setSelectedYear(
-      date.getFullYear()
-    );
-
-    /*
-     * Open Day screen.
-     */
     router.push({
       pathname: "/day",
-      params: {
-        date: selectedKey,
-      },
+      params: { date: selectedKey },
     });
   };
 
-  /*
-   * =======================================================
-   * CAMERA
-   * =======================================================
-   */
+  /* =======================================================
+   * CAMERA / GALLERY
+   * ======================================================= */
 
-  const openCamera = async (
-    taskIndex: number
-  ) => {
-    if (
-      selectedDateKey !==
-      todayKey
-    ) {
-      Alert.alert(
-        "Not Available",
-        "You can add mission photos only for today."
-      );
-
+  const openCamera = async (taskIndex: number) => {
+    if (selectedDateKey !== todayKey) {
+      Alert.alert("Not Available", "You can add mission photos only for today.");
       return;
     }
 
     try {
-      const permission =
-        await ImagePicker.requestCameraPermissionsAsync();
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
 
       if (!permission.granted) {
         Alert.alert(
           "Camera Permission",
           "Please allow camera permission in your phone settings to take a task photo."
         );
-
         return;
       }
 
-      const result =
-        await ImagePicker.launchCameraAsync(
-          {
-            mediaTypes:
-              ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            quality: 0.85,
-          }
-        );
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.85,
+      });
 
-      if (
-        !result.canceled &&
-        result.assets?.[0]?.uri
-      ) {
-        await updateTaskPhoto(
-          taskIndex,
-          result.assets[0].uri
-        );
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        await updateTaskPhoto(taskIndex, result.assets[0].uri);
       }
     } catch (error) {
-      console.log(
-        "Camera upload error:",
-        error
-      );
-
-      Alert.alert(
-        "Camera Error",
-        "Could not open the camera."
-      );
+      console.log("Camera upload error:", error);
+      Alert.alert("Camera Error", "Could not open the camera.");
     }
   };
 
-  /*
-   * =======================================================
-   * GALLERY
-   * =======================================================
-   */
-
-  const openGallery = async (
-    taskIndex: number
-  ) => {
-    if (
-      selectedDateKey !==
-      todayKey
-    ) {
-      Alert.alert(
-        "Not Available",
-        "You can add mission photos only for today."
-      );
-
+  const openGallery = async (taskIndex: number) => {
+    if (selectedDateKey !== todayKey) {
+      Alert.alert("Not Available", "You can add mission photos only for today.");
       return;
     }
 
     try {
-      const permission =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (!permission.granted) {
         Alert.alert(
           "Gallery Permission",
           "Please allow photo library permission to choose a task photo."
         );
-
         return;
       }
 
-      const result =
-        await ImagePicker.launchImageLibraryAsync(
-          {
-            mediaTypes:
-              ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            quality: 0.85,
-          }
-        );
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.85,
+      });
 
-      if (
-        !result.canceled &&
-        result.assets?.[0]?.uri
-      ) {
-        await updateTaskPhoto(
-          taskIndex,
-          result.assets[0].uri
-        );
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        await updateTaskPhoto(taskIndex, result.assets[0].uri);
       }
     } catch (error) {
-      console.log(
-        "Gallery upload error:",
-        error
-      );
-
-      Alert.alert(
-        "Gallery Error",
-        "Could not open the gallery."
-      );
+      console.log("Gallery upload error:", error);
+      Alert.alert("Gallery Error", "Could not open the gallery.");
     }
   };
 
-  /*
-   * =======================================================
+  /* =======================================================
    * CHOOSE TASK PHOTO
-   * =======================================================
-   */
+   * ======================================================= */
 
-  const chooseTaskPhoto = (
-    taskIndex: number
-  ) => {
-    const taskName =
-      taskNames[taskIndex];
+  const chooseTaskPhoto = (taskIndex: number) => {
+    const taskName = taskNames[taskIndex];
 
-    const hasPhoto =
-      Boolean(
-        progress[
-          selectedDateKey
-        ]?.[
-          String(taskIndex)
-        ]
-      );
+    const hasPhoto = Boolean(progress[selectedDateKey]?.[String(taskIndex)]);
+    const selectedDate = parseDateKey(selectedDateKey);
 
-    const selectedDate =
-      parseDateKey(
-        selectedDateKey
-      );
-
-    /*
-     * Future
-     */
-    if (
-      isFuture(
-        selectedDate
-      )
-    ) {
-      Alert.alert(
-        "Not Available Yet",
-        "Future dates cannot be edited."
-      );
-
+    // Future.
+    if (isFuture(selectedDate)) {
+      Alert.alert("Not Available Yet", "Future dates cannot be edited.");
       return;
     }
 
-    /*
-     * Past + existing photo
-     *
-     * Only preview.
-     */
-    if (
-      selectedDateKey !==
-        todayKey &&
-      hasPhoto
-    ) {
-      setPreviewPhoto(
-        progress[
-          selectedDateKey
-        ]?.[
-          String(taskIndex)
-        ] || null
-      );
-
+    // Past + existing photo -> preview only.
+    if (selectedDateKey !== todayKey && hasPhoto) {
+      setPreviewPhoto(progress[selectedDateKey]?.[String(taskIndex)] || null);
       return;
     }
 
-    /*
-     * Past + no photo
-     */
-    if (
-      selectedDateKey !==
-        todayKey &&
-      !hasPhoto
-    ) {
-      Alert.alert(
-        "Not Available",
-        "Missions can only be added on the current date."
-      );
-
+    // Past + no photo.
+    if (selectedDateKey !== todayKey && !hasPhoto) {
+      Alert.alert("Not Available", "Missions can only be added on the current date.");
       return;
     }
 
-    /*
-     * Today
-     */
-    const buttons: any[] =
-      [
-        {
-          text: "CAMERA",
-          onPress: () =>
-            openCamera(
-              taskIndex
-            ),
-        },
-        {
-          text: "GALLERY",
-          onPress: () =>
-            openGallery(
-              taskIndex
-            ),
-        },
-      ];
+    // Today.
+    const buttons: any[] = [
+      { text: "CAMERA", onPress: () => openCamera(taskIndex) },
+      { text: "GALLERY", onPress: () => openGallery(taskIndex) },
+    ];
 
     if (hasPhoto) {
       buttons.push({
         text: "REMOVE",
         style: "destructive",
-        onPress: () =>
-          removePhoto(
-            taskIndex
-          ),
+        onPress: () => removePhoto(taskIndex),
       });
     }
 
-    buttons.push({
-      text: "CANCEL",
-      style: "cancel",
-    });
+    buttons.push({ text: "CANCEL", style: "cancel" });
 
-    Alert.alert(
-      taskName,
-      `Add a photo for ${formatDisplayDate(
-        selectedDate
-      )}`,
-      buttons
-    );
+    Alert.alert(taskName, `Add a photo for ${formatDisplayDate(selectedDate)}`, buttons);
   };
 
-  /*
-   * =======================================================
+  /* =======================================================
    * 5 SPARK ANIMATION
-   * =======================================================
-   */
+   * ======================================================= */
 
-  const playSparkAnimation =
-    () => {
-      setSparkAnimation(
-        true
-      );
+  const playSparkAnimation = () => {
+    setSparkAnimation(true);
+    scaleAnim.setValue(0.5);
+    opacityAnim.setValue(0);
 
-      scaleAnim.setValue(
-        0.5
-      );
+    Animated.parallel([
+      Animated.spring(scaleAnim, { toValue: 1.15, friction: 5, tension: 90, useNativeDriver: true }),
+      Animated.timing(opacityAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+    ]).start(() => {
+      setTimeout(() => {
+        Animated.parallel([
+          Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }),
+          Animated.timing(opacityAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+        ]).start(() => setSparkAnimation(false));
+      }, 900);
+    });
+  };
 
-      opacityAnim.setValue(
-        0
-      );
-
-      Animated.parallel([
-        Animated.spring(
-          scaleAnim,
-          {
-            toValue: 1.15,
-            friction: 5,
-            tension: 90,
-            useNativeDriver: true,
-          }
-        ),
-
-        Animated.timing(
-          opacityAnim,
-          {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true,
-          }
-        ),
-      ]).start(() => {
-        setTimeout(() => {
-          Animated.parallel([
-            Animated.spring(
-              scaleAnim,
-              {
-                toValue: 1,
-                useNativeDriver: true,
-              }
-            ),
-
-            Animated.timing(
-              opacityAnim,
-              {
-                toValue: 0,
-                duration: 500,
-                useNativeDriver: true,
-              }
-            ),
-          ]).start(() => {
-            setSparkAnimation(
-              false
-            );
-          });
-        }, 900);
-      });
-    };
-
-  /*
-   * =======================================================
+  /* =======================================================
    * CALENDAR DAYS
-   * =======================================================
-   */
+   * ======================================================= */
 
-  const calendarDays =
-    useMemo(() => {
-      const firstDay =
-        new Date(
-          selectedYear,
-          selectedMonth,
-          1
-        );
+  const calendarDays = useMemo(() => {
+    const firstDay = new Date(selectedYear, selectedMonth, 1);
+    const lastDay = new Date(selectedYear, selectedMonth + 1, 0);
 
-      const lastDay =
-        new Date(
-          selectedYear,
-          selectedMonth + 1,
-          0
-        );
+    // JS Sunday = 0. Convert to Monday-first calendar.
+    const firstWeekDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+    const totalDays = lastDay.getDate();
 
-      const firstWeekDay =
-        firstDay.getDay() === 0
-          ? 6
-          : firstDay.getDay() - 1;
+    const cells: (number | null)[] = [];
 
-      const totalDays =
-        lastDay.getDate();
+    for (let i = 0; i < firstWeekDay; i++) cells.push(null);
+    for (let day = 1; day <= totalDays; day++) cells.push(day);
+    while (cells.length % 7 !== 0) cells.push(null);
 
-      const cells: (
-        | number
-        | null
-      )[] = [];
+    return cells;
+  }, [selectedMonth, selectedYear]);
 
-      for (
-        let i = 0;
-        i < firstWeekDay;
-        i++
-      ) {
-        cells.push(null);
-      }
+  const years = useMemo(() => {
+    const currentYear = today.getFullYear();
+    const values: number[] = [];
 
-      for (
-        let day = 1;
-        day <= totalDays;
-        day++
-      ) {
-        cells.push(day);
-      }
+    for (let year = currentYear - 5; year <= currentYear + 2; year++) {
+      values.push(year);
+    }
 
-      while (
-        cells.length % 7 !==
-        0
-      ) {
-        cells.push(null);
-      }
+    return values;
+  }, []);
 
-      return cells;
-    }, [
-      selectedMonth,
-      selectedYear,
-    ]);
-
-  /*
-   * =======================================================
-   * YEAR LIST
-   * =======================================================
-   */
-
-  const years =
-    useMemo(() => {
-      const currentYear =
-        today.getFullYear();
-
-      const values: number[] =
-        [];
-
-      for (
-        let year =
-          currentYear - 5;
-        year <=
-        currentYear + 2;
-        year++
-      ) {
-        values.push(year);
-      }
-
-      return values;
-    }, []);
-
-  /*
-   * =======================================================
-   * COMPLETED DAYS
-   * =======================================================
-   */
-
-  const completedDaysInSelectedMonth =
-    useMemo(() => {
-      return Object.entries(
-        progress
-      ).filter(
-        ([key, tasks]) => {
-          const date =
-            parseDateKey(key);
-
-          const hasTask =
-            Object.keys(
-              tasks || {}
-            ).length > 0;
-
-          return (
-            hasTask &&
-            date.getFullYear() ===
-              selectedYear &&
-            date.getMonth() ===
-              selectedMonth &&
-            date.getTime() <=
-              today.getTime() &&
-            (!startDate ||
-              date.getTime() >=
-                startDate.getTime())
-          );
-        }
-      ).length;
-    }, [
-      progress,
-      selectedMonth,
-      selectedYear,
-      startDate,
-      today,
-    ]);
-
-  /*
-   * =======================================================
-   * SELECTED JOURNEY DAY
-   * =======================================================
-   */
-
-  const selectedJourneyDay =
-    useMemo(() => {
-      if (!startDate) {
-        return 1;
-      }
-
-      const selectedDate =
-        parseDateKey(
-          selectedDateKey
-        );
-
-      const start =
-        normalizeDate(
-          startDate
-        );
-
-      const selected =
-        normalizeDate(
-          selectedDate
-        );
-
-      const difference =
-        selected.getTime() -
-        start.getTime();
-
-      const oneDay =
-        1000 *
-        60 *
-        60 *
-        24;
+  const completedDaysInSelectedMonth = useMemo(() => {
+    return Object.entries(progress).filter(([key, tasks]) => {
+      const date = parseDateKey(key);
+      const hasTask = Object.keys(tasks || {}).length > 0;
 
       return (
-        Math.floor(
-          difference /
-            oneDay
-        ) + 1
+        hasTask &&
+        date.getFullYear() === selectedYear &&
+        date.getMonth() === selectedMonth &&
+        date.getTime() <= today.getTime() &&
+        (!startDate || date.getTime() >= startDate.getTime())
       );
-    }, [
-      selectedDateKey,
-      startDate,
-    ]);
+    }).length;
+  }, [progress, selectedMonth, selectedYear, startDate, today]);
 
-  /*
-   * =======================================================
-   * SPARK COUNTS
-   * =======================================================
-   */
+  const selectedJourneyDay = useMemo(() => {
+    if (!startDate) return 1;
 
-  const selectedDateSparkCount =
-    Object.keys(
-      selectedDateProgress
-    ).length;
+    const selectedDate = parseDateKey(selectedDateKey);
+    const start = normalizeDate(startDate);
+    const selected = normalizeDate(selectedDate);
 
-  const totalTodaySparks =
-    Object.keys(
-      progress[todayKey] || {}
-    ).length;
+    const difference = selected.getTime() - start.getTime();
+    const oneDay = 1000 * 60 * 60 * 24;
 
-  /*
-   * =======================================================
+    return Math.floor(difference / oneDay) + 1;
+  }, [selectedDateKey, startDate]);
+
+  const selectedDateSparkCount = Object.keys(selectedDateProgress).length;
+  const totalTodaySparks = Object.keys(progress[todayKey] || {}).length;
+
+  /* =======================================================
    * SPARK ICONS
-   * =======================================================
-   */
+   * ======================================================= */
 
-  const renderSparkIcons = (
-    completedCount: number,
-    small = false
-  ) => {
+  const renderSparkIcons = (completedCount: number, small = false) => {
     return (
-      <View
-        style={
-          styles.sparkRow
-        }
-      >
-        {[0, 1, 2, 3, 4].map(
-          (index) => {
-            const active =
-              index <
-              completedCount;
+      <View style={styles.sparkRow}>
+        {[0, 1, 2, 3, 4].map((index) => {
+          const active = index < completedCount;
 
-            return (
-              <Text
-                key={index}
-                style={[
-                  small
-                    ? styles.smallSpark
-                    : styles.sparkIcon,
-                  !active &&
-                    styles.dimSpark,
-                ]}
-              >
-                ✨
-              </Text>
-            );
-          }
-        )}
+          return (
+            <Text
+              key={index}
+              style={[small ? styles.smallSpark : styles.sparkIcon, !active && styles.dimSpark]}
+            >
+              ✨
+            </Text>
+          );
+        })}
       </View>
     );
   };
 
-  /*
-   * =======================================================
+  /* =======================================================
    * UI
-   * =======================================================
-   */
+   * ======================================================= */
 
   return (
-    <View
-      style={styles.container}
-    >
-      <ScrollView
-        showsVerticalScrollIndicator={
-          false
-        }
-        contentContainerStyle={
-          styles.scrollContent
-        }
-      >
-        {/* HEADER */}
-
-        <View
-          style={styles.header}
-        >
-          <TouchableOpacity
-            onPress={() =>
-              router.back()
-            }
-            style={
-              styles.backButton
-            }
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.gradient[0] }}>
+      <LinearGradient colors={theme.gradient} style={{ flex: 1 }}>
+        <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+        <View style={{ flex: 1 }}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
           >
-            <Ionicons
-              name="arrow-back"
-              size={28}
-              color="#222"
-            />
-          </TouchableOpacity>
+            {/* HEADER */}
+            <View style={styles.header}>
+              <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={28} color={theme.primary} />
+              </TouchableOpacity>
 
-          <Text
-            style={styles.title}
-          >
-            Spark
-          </Text>
-        </View>
+              <Text style={[styles.title, { color: theme.primary }]}>Spark</Text>
+            </View>
 
-        {/* STREAK */}
+            {/* STREAK */}
+            <View style={styles.streakContainer}>
+              <Image
+                source={require("../assets/images/ninigo_burning.gif")}
+                style={styles.burningHeartImage}
+                resizeMode="contain"
+              />
 
-        <View
-          style={
-            styles.streakContainer
-          }
-        >
-          <Image
-            source={require("../assets/images/ninigo_burning.gif")}
-            style={
-              styles.burningHeartImage
-            }
-            resizeMode="contain"
-          />
+              <Text style={[styles.daysText, { color: theme.primary }]}>
+                {selectedJourneyDay} {selectedJourneyDay === 1 ? "Day" : "Days"}
+              </Text>
 
-          <Text
-            style={styles.daysText}
-          >
-            {selectedJourneyDay}{" "}
-            {selectedJourneyDay ===
-            1
-              ? "Day"
-              : "Days"}
-          </Text>
-        </View>
+              {renderSparkIcons(selectedDateSparkCount)}
+            </View>
 
-        {/* MISSIONS */}
+            {/* MISSIONS */}
+            <Text style={[styles.missionsTitle, { color: theme.primary }]}>Missions</Text>
 
-        <Text
-          style={
-            styles.missionsTitle
-          }
-        >
-          Missions
-        </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.missionsContainer}
+            >
+              {missions.map((mission, index) => {
+                const selectedPhoto = progress[selectedDateKey]?.[String(index)];
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={
-            false
-          }
-          contentContainerStyle={
-            styles.missionsContainer
-          }
-        >
-          {missions.map(
-            (
-              mission,
-              index
-            ) => {
-              const selectedPhoto =
-                progress[
-                  selectedDateKey
-                ]?.[
-                  String(index)
-                ];
+                return (
+                  <View key={index} style={styles.missionItem}>
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      style={styles.missionCircle}
+                      onPress={() => chooseTaskPhoto(index)}
+                    >
+                      {selectedPhoto ? (
+                        <Image source={{ uri: selectedPhoto }} style={styles.missionImage} />
+                      ) : (
+                        <Ionicons name="camera-outline" size={31} color={theme.primary} />
+                      )}
+                    </TouchableOpacity>
 
-              return (
-                <View
-                  key={index}
-                  style={
-                    styles.missionItem
-                  }
-                >
-                  <TouchableOpacity
-                    activeOpacity={
-                      0.8
-                    }
-                    style={
-                      styles.missionCircle
-                    }
-                    onPress={() =>
-                      chooseTaskPhoto(
-                        index
-                      )
-                    }
-                  >
-                    {selectedPhoto ? (
-                      <Image
-                        source={{
-                          uri: selectedPhoto,
-                        }}
-                        style={
-                          styles.missionImage
-                        }
-                      />
-                    ) : (
-                      <Ionicons
-                        name="camera-outline"
-                        size={31}
-                        color="#C13BE0"
-                      />
-                    )}
-                  </TouchableOpacity>
+                    <Text style={styles.missionText}>{mission.title}</Text>
+                  </View>
+                );
+              })}
+            </ScrollView>
 
-                  <Text
-                    style={
-                      styles.missionText
-                    }
-                  >
-                    {
-                      mission.title
-                    }
+            {/* CALENDAR */}
+            <View
+              style={[
+                styles.calendarContainer,
+                { backgroundColor: "#FFFFFFEE", borderWidth: 1, borderColor: theme.primary + "33" },
+              ]}
+            >
+              <View style={styles.calendarHeader}>
+                <TouchableOpacity style={styles.selectorButton} onPress={() => setMonthModal(true)}>
+                  <Text style={[styles.monthText, { color: theme.primary }]}>
+                    {monthNames[selectedMonth]}
                   </Text>
-                </View>
-              );
-            }
-          )}
-        </ScrollView>
+                  <Ionicons name="chevron-down" size={17} color={theme.primary} />
+                </TouchableOpacity>
 
-        {/* CALENDAR */}
+                <TouchableOpacity style={styles.selectorButton} onPress={() => setYearModal(true)}>
+                  <Text style={[styles.yearText, { color: theme.primary }]}>{selectedYear}</Text>
+                  <Ionicons name="chevron-down" size={17} color={theme.primary} />
+                </TouchableOpacity>
+              </View>
 
-        <View
-          style={
-            styles.calendarContainer
-          }
-        >
-          {/* CALENDAR HEADER */}
+              <View style={styles.weekRow}>
+                {weekNames.map((day, index) => (
+                  <Text key={day} style={[styles.weekText, index >= 5 && styles.weekendText]}>
+                    {day}
+                  </Text>
+                ))}
+              </View>
 
-          <View
-            style={
-              styles.calendarHeader
-            }
-          >
-            <TouchableOpacity
-              style={
-                styles.selectorButton
-              }
-              onPress={() =>
-                setMonthModal(
-                  true
-                )
-              }
-            >
-              <Text
-                style={
-                  styles.monthText
-                }
-              >
-                {
-                  monthNames[
-                    selectedMonth
-                  ]
-                }
-              </Text>
-
-              <Ionicons
-                name="chevron-down"
-                size={17}
-                color="#1265C9"
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={
-                styles.selectorButton
-              }
-              onPress={() =>
-                setYearModal(
-                  true
-                )
-              }
-            >
-              <Text
-                style={
-                  styles.yearText
-                }
-              >
-                {selectedYear}
-              </Text>
-
-              <Ionicons
-                name="chevron-down"
-                size={17}
-                color="#1265C9"
-              />
-            </TouchableOpacity>
-          </View>
-
-          {/* WEEK */}
-
-          <View
-            style={styles.weekRow}
-          >
-            {weekNames.map(
-              (
-                day,
-                index
-              ) => (
-                <Text
-                  key={day}
-                  style={[
-                    styles.weekText,
-                    index >= 5 &&
-                      styles.weekendText,
-                  ]}
-                >
-                  {day}
-                </Text>
-              )
-            )}
-          </View>
-
-          {/* CALENDAR */}
-
-          {Array.from({
-            length:
-              calendarDays.length /
-              7,
-          }).map(
-            (
-              _,
-              weekIndex
-            ) => (
-              <View
-                style={
-                  styles.dateRow
-                }
-                key={
-                  weekIndex
-                }
-              >
-                {calendarDays
-                  .slice(
-                    weekIndex *
-                      7,
-                    weekIndex *
-                      7 +
-                      7
-                  )
-                  .map(
-                    (
-                      day,
-                      index
-                    ) => {
-                      if (
-                        !day
-                      ) {
-                        return (
-                          <View
-                            style={
-                              styles.dateCell
-                            }
-                            key={`empty-${index}`}
-                          />
-                        );
+              {Array.from({ length: calendarDays.length / 7 }).map((_, weekIndex) => (
+                <View style={styles.dateRow} key={weekIndex}>
+                  {calendarDays
+                    .slice(weekIndex * 7, weekIndex * 7 + 7)
+                    .map((day, index) => {
+                      if (!day) {
+                        return <View style={styles.dateCell} key={`empty-${index}`} />;
                       }
 
-                      const date =
-                        new Date(
-                          selectedYear,
-                          selectedMonth,
-                          day
-                        );
-
-                      const key =
-                        dateKey(
-                          date
-                        );
-
-                      const completed =
-                        getTaskCount(
-                          date
-                        );
-
-                      const beforeStart =
-                        isBeforeStart(
-                          date
-                        );
-
-                      const future =
-                        isFuture(
-                          date
-                        );
-
-                      const disabled =
-                        future ||
-                        (beforeStart &&
-                          completed ===
-                            0);
-
-                      const isToday =
-                        key ===
-                        todayKey;
-
-                      const isSelected =
-                        key ===
-                        selectedDateKey;
-
-                      const isPressed =
-                        pressedDateKey ===
-                        key;
+                      const date = new Date(selectedYear, selectedMonth, day);
+                      const key = dateKey(date);
+                      const completed = getTaskCount(date);
+                      const beforeStart = isBeforeStart(date);
+                      const future = isFuture(date);
+                      const disabled = future || (beforeStart && completed === 0);
+                      const isToday = key === todayKey;
+                      const isSelected = key === selectedDateKey;
+                      const isPressed = pressedDateKey === key;
 
                       return (
                         <TouchableOpacity
-                          key={
-                            day
-                          }
+                          key={day}
                           style={[
                             styles.dateCell,
-                            disabled &&
-                              styles.disabledCell,
+                            isToday && { backgroundColor: theme.primary + "22" },
+                            disabled && styles.disabledCell,
                           ]}
-                          activeOpacity={
-                            0.75
-                          }
+                          activeOpacity={0.75}
                           onPressIn={() => {
-                            if (
-                              !disabled
-                            ) {
-                              setPressedDateKey(
-                                key
-                              );
-                            }
+                            if (!disabled) setPressedDateKey(key);
                           }}
-                          onPressOut={() => {
-                            setPressedDateKey(
-                              null
-                            );
-                          }}
-                          onPress={() =>
-                            openDate(
-                              date
-                            )
-                          }
+                          onPressOut={() => setPressedDateKey(null)}
+                          onPress={() => openDate(date)}
                         >
                           <Text
                             style={[
                               styles.dateText,
-                              index >=
-                                5 &&
-                                styles.weekendDate,
-                              disabled &&
-                                styles.disabledDate,
-                              isToday &&
-                                styles.todayDate,
-                              isSelected &&
-                                styles.selectedDateText,
+                              index >= 5 && styles.weekendDate,
+                              disabled && styles.disabledDate,
+                              isToday && { color: theme.primary, fontWeight: "900" },
+                              isSelected && { color: theme.primary },
                             ]}
                           >
                             {day}
                           </Text>
 
-                          {isPressed &&
-                            !disabled &&
-                            completed >
-                              0 && (
-                              <View
-                                style={
-                                  styles.touchHeartRow
-                                }
-                              >
-                                {Array.from(
-                                  {
-                                    length:
-                                      Math.min(
-                                        completed,
-                                        5
-                                      ),
-                                  }
-                                ).map(
-                                  (
-                                    _,
-                                    heartIndex
-                                  ) => (
-                                    <Text
-                                      key={
-                                        heartIndex
-                                      }
-                                      style={
-                                        styles.touchHeart
-                                      }
-                                    >
-                                      ❤️
-                                    </Text>
-                                  )
-                                )}
-                              </View>
-                            )}
+                          {isPressed && !disabled && completed > 0 && (
+                            <View style={styles.touchHeartRow}>
+                              {Array.from({ length: Math.min(completed, 5) }).map((_, heartIndex) => (
+                                <Text key={heartIndex} style={styles.touchHeart}>
+                                  ❤️
+                                </Text>
+                              ))}
+                            </View>
+                          )}
+
+                          {!isPressed && completed > 0 && (
+                            <View style={styles.calendarSpark}>
+                              {renderSparkIcons(completed, true)}
+                            </View>
+                          )}
                         </TouchableOpacity>
                       );
-                    }
-                  )}
+                    })}
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+
+          {/* MONTH MODAL */}
+          <Modal
+            visible={monthModal}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setMonthModal(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.selectorModal}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Select Month</Text>
+                  <TouchableOpacity onPress={() => setMonthModal(false)}>
+                    <Ionicons name="close" size={25} color="#333" />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView>
+                  {monthNames.map((month, index) => {
+                    const active = index === selectedMonth;
+
+                    return (
+                      <TouchableOpacity
+                        key={month}
+                        style={[styles.listItem, active && { backgroundColor: theme.primary + "22" }]}
+                        onPress={() => {
+                          setSelectedMonth(index);
+                          setMonthModal(false);
+                        }}
+                      >
+                        <Text
+                          style={[styles.listText, active && { color: theme.primary, fontWeight: "800" }]}
+                        >
+                          {month}
+                        </Text>
+
+                        {active && <Ionicons name="checkmark-circle" size={22} color={theme.primary} />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
               </View>
-            )
+            </View>
+          </Modal>
+
+          {/* YEAR MODAL */}
+          <Modal
+            visible={yearModal}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setYearModal(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.selectorModal}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Select Year</Text>
+                  <TouchableOpacity onPress={() => setYearModal(false)}>
+                    <Ionicons name="close" size={25} color="#333" />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView>
+                  {years.map((year) => {
+                    const active = year === selectedYear;
+
+                    return (
+                      <TouchableOpacity
+                        key={year}
+                        style={[styles.listItem, active && { backgroundColor: theme.primary + "22" }]}
+                        onPress={() => {
+                          setSelectedYear(year);
+                          setYearModal(false);
+                        }}
+                      >
+                        <Text
+                          style={[styles.listText, active && { color: theme.primary, fontWeight: "800" }]}
+                        >
+                          {year}
+                        </Text>
+
+                        {active && <Ionicons name="checkmark-circle" size={22} color={theme.primary} />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
+
+          {/* PHOTO PREVIEW */}
+          <Modal
+            visible={Boolean(previewPhoto)}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setPreviewPhoto(null)}
+          >
+            <View style={styles.photoPreviewOverlay}>
+              <TouchableOpacity style={styles.photoPreviewClose} onPress={() => setPreviewPhoto(null)}>
+                <Ionicons name="close" size={30} color="#FFFFFF" />
+              </TouchableOpacity>
+
+              {previewPhoto && (
+                <Image
+                  source={{ uri: previewPhoto }}
+                  style={styles.photoPreviewImage}
+                  resizeMode="contain"
+                />
+              )}
+            </View>
+          </Modal>
+
+          {/* 5 SPARK CELEBRATION */}
+          {sparkAnimation && (
+            <View pointerEvents="none" style={styles.celebrationContainer}>
+              <Animated.View
+                style={[
+                  styles.celebrationBox,
+                  { opacity: opacityAnim, transform: [{ scale: scaleAnim }] },
+                ]}
+              >
+                <Text style={styles.celebrationSpark}>✨✨✨✨✨</Text>
+                <Text style={[styles.celebrationTitle, { color: theme.primary }]}>5 Sparks!</Text>
+                <Text style={styles.celebrationText}>You completed every task today!</Text>
+              </Animated.View>
+            </View>
           )}
         </View>
-      </ScrollView>
-
-      {/* ===================================================
-          MONTH MODAL
-          =================================================== */}
-
-      <Modal
-        visible={
-          monthModal
-        }
-        transparent
-        animationType="fade"
-        onRequestClose={() =>
-          setMonthModal(
-            false
-          )
-        }
-      >
-        <View
-          style={
-            styles.modalOverlay
-          }
-        >
-          <View
-            style={
-              styles.selectorModal
-            }
-          >
-            <View
-              style={
-                styles.modalHeader
-              }
-            >
-              <Text
-                style={
-                  styles.modalTitle
-                }
-              >
-                Select Month
-              </Text>
-
-              <TouchableOpacity
-                onPress={() =>
-                  setMonthModal(
-                    false
-                  )
-                }
-              >
-                <Ionicons
-                  name="close"
-                  size={25}
-                  color="#333"
-                />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView>
-              {monthNames.map(
-                (
-                  month,
-                  index
-                ) => {
-                  const active =
-                    index ===
-                    selectedMonth;
-
-                  return (
-                    <TouchableOpacity
-                      key={
-                        month
-                      }
-                      style={[
-                        styles.listItem,
-                        active &&
-                          styles.selectedListItem,
-                      ]}
-                      onPress={() => {
-                        setSelectedMonth(
-                          index
-                        );
-
-                        setMonthModal(
-                          false
-                        );
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.listText,
-                          active &&
-                            styles.selectedListText,
-                        ]}
-                      >
-                        {
-                          month
-                        }
-                      </Text>
-
-                      {active && (
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={
-                            22
-                          }
-                          color="#C13BE0"
-                        />
-                      )}
-                    </TouchableOpacity>
-                  );
-                }
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ===================================================
-          YEAR MODAL
-          =================================================== */}
-
-      <Modal
-        visible={
-          yearModal
-        }
-        transparent
-        animationType="fade"
-        onRequestClose={() =>
-          setYearModal(
-            false
-          )
-        }
-      >
-        <View
-          style={
-            styles.modalOverlay
-          }
-        >
-          <View
-            style={
-              styles.selectorModal
-            }
-          >
-            <View
-              style={
-                styles.modalHeader
-              }
-            >
-              <Text
-                style={
-                  styles.modalTitle
-                }
-              >
-                Select Year
-              </Text>
-
-              <TouchableOpacity
-                onPress={() =>
-                  setYearModal(
-                    false
-                  )
-                }
-              >
-                <Ionicons
-                  name="close"
-                  size={25}
-                  color="#333"
-                />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView>
-              {years.map(
-                (year) => {
-                  const active =
-                    year ===
-                    selectedYear;
-
-                  return (
-                    <TouchableOpacity
-                      key={
-                        year
-                      }
-                      style={[
-                        styles.listItem,
-                        active &&
-                          styles.selectedListItem,
-                      ]}
-                      onPress={() => {
-                        setSelectedYear(
-                          year
-                        );
-
-                        setYearModal(
-                          false
-                        );
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.listText,
-                          active &&
-                            styles.selectedListText,
-                        ]}
-                      >
-                        {
-                          year
-                        }
-                      </Text>
-
-                      {active && (
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={
-                            22
-                          }
-                          color="#C13BE0"
-                        />
-                      )}
-                    </TouchableOpacity>
-                  );
-                }
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ===================================================
-          PHOTO PREVIEW
-          =================================================== */}
-
-      <Modal
-        visible={
-          Boolean(
-            previewPhoto
-          )
-        }
-        transparent
-        animationType="fade"
-        onRequestClose={() =>
-          setPreviewPhoto(
-            null
-          )
-        }
-      >
-        <View
-          style={
-            styles.photoPreviewOverlay
-          }
-        >
-          <TouchableOpacity
-            style={
-              styles.photoPreviewClose
-            }
-            onPress={() =>
-              setPreviewPhoto(
-                null
-              )
-            }
-          >
-            <Ionicons
-              name="close"
-              size={30}
-              color="#FFFFFF"
-            />
-          </TouchableOpacity>
-
-          {previewPhoto && (
-            <Image
-              source={{
-                uri: previewPhoto,
-              }}
-              style={
-                styles.photoPreviewImage
-              }
-              resizeMode="contain"
-            />
-          )}
-        </View>
-      </Modal>
-
-      {/* ===================================================
-          5 SPARK CELEBRATION
-          =================================================== */}
-
-      {sparkAnimation && (
-        <View
-          pointerEvents="none"
-          style={
-            styles.celebrationContainer
-          }
-        >
-          <Animated.View
-            style={[
-              styles.celebrationBox,
-              {
-                opacity:
-                  opacityAnim,
-                transform: [
-                  {
-                    scale:
-                      scaleAnim,
-                  },
-                ],
-              },
-            ]}
-          >
-            <Text
-              style={
-                styles.celebrationSpark
-              }
-            >
-              ✨✨✨✨✨
-            </Text>
-
-            <Text
-              style={
-                styles.celebrationTitle
-              }
-            >
-              5 Sparks!
-            </Text>
-
-            <Text
-              style={
-                styles.celebrationText
-              }
-            >
-              You completed every task today!
-            </Text>
-          </Animated.View>
-        </View>
-      )}
-    </View>
+      </LinearGradient>
+    </SafeAreaView>
   );
 }
 
-/*
- * =========================================================
+/* =========================================================
  * STYLES
- * =========================================================
- */
+ * ========================================================= */
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFF4FC",
-  },
-
-  scrollContent: {
-    paddingBottom: 40,
-  },
+  scrollContent: { paddingBottom: 40 },
 
   header: {
     height: 145,
@@ -2585,14 +1098,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
 
-  backButton: {
-    padding: 4,
-  },
+  backButton: { padding: 4 },
 
   title: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#C83DE0",
     marginLeft: 8,
   },
 
@@ -2611,7 +1121,6 @@ const styles = StyleSheet.create({
   daysText: {
     fontSize: 19,
     fontWeight: "600",
-    color: "#FF6A00",
   },
 
   sparkRow: {
@@ -2621,32 +1130,13 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  sparkIcon: {
-    fontSize: 24,
-    marginHorizontal: 2,
-  },
-
-  smallSpark: {
-    fontSize: 11,
-    marginHorizontal: 1,
-  },
-
-  dimSpark: {
-    opacity: 0.2,
-  },
-
-  mainSlogan: {
-    marginTop: 8,
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#B83CCF",
-    textAlign: "center",
-  },
+  sparkIcon: { fontSize: 24, marginHorizontal: 2 },
+  smallSpark: { fontSize: 11, marginHorizontal: 1 },
+  dimSpark: { opacity: 0.2 },
 
   missionsTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#C33FD5",
     marginTop: 29,
     marginLeft: 16,
     marginBottom: 12,
@@ -2658,10 +1148,7 @@ const styles = StyleSheet.create({
     marginTop: 9,
   },
 
-  missionItem: {
-    width: 62,
-    alignItems: "center",
-  },
+  missionItem: { width: 62, alignItems: "center" },
 
   missionCircle: {
     width: 62,
@@ -2673,11 +1160,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
 
-  missionImage: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-  },
+  missionImage: { width: 62, height: 62, borderRadius: 31 },
 
   missionText: {
     fontSize: 9,
@@ -2688,18 +1171,9 @@ const styles = StyleSheet.create({
     marginTop: 7,
   },
 
-  selectedDateLabel: {
-    textAlign: "center",
-    marginTop: 16,
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#B83CCF",
-  },
-
   calendarContainer: {
     marginHorizontal: 9,
-    marginTop: 16,
-    backgroundColor: "#FFF7C9",
+    marginTop: 30,
     borderRadius: 17,
     paddingHorizontal: 10,
     paddingTop: 13,
@@ -2723,22 +1197,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
 
-  monthText: {
-    fontSize: 21,
-    fontWeight: "800",
-    color: "#1265C9",
-  },
+  monthText: { fontSize: 21, fontWeight: "800" },
+  yearText: { fontSize: 18, fontWeight: "800" },
 
-  yearText: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#1265C9",
-  },
-
-  weekRow: {
-    flexDirection: "row",
-    marginBottom: 9,
-  },
+  weekRow: { flexDirection: "row", marginBottom: 9 },
 
   weekText: {
     width: "14.285%",
@@ -2748,15 +1210,9 @@ const styles = StyleSheet.create({
     color: "#5C98D6",
   },
 
-  weekendText: {
-    color: "#5C98D6",
-  },
+  weekendText: { color: "#5C98D6" },
 
-  dateRow: {
-    flexDirection: "row",
-    height: 53,
-    alignItems: "center",
-  },
+  dateRow: { flexDirection: "row", height: 53, alignItems: "center" },
 
   dateCell: {
     width: "14.285%",
@@ -2766,31 +1222,11 @@ const styles = StyleSheet.create({
     borderRadius: 13,
   },
 
-  disabledCell: {
-    opacity: 0.35,
-  },
+  disabledCell: { opacity: 0.35 },
 
-  dateText: {
-    fontSize: 17,
-    fontWeight: "900",
-    color: "#444",
-  },
-
-  weekendDate: {
-    color: "#444",
-  },
-
-  disabledDate: {
-    color: "#999",
-  },
-
-  todayDate: {
-    color: "#8B3DCC",
-  },
-
-  selectedDateText: {
-    color: "#A52BC5",
-  },
+  dateText: { fontSize: 17, fontWeight: "900", color: "#444" },
+  weekendDate: { color: "#444" },
+  disabledDate: { color: "#999" },
 
   touchHeartRow: {
     position: "absolute",
@@ -2800,20 +1236,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  touchHeart: {
-    fontSize: 11,
-    marginHorizontal: 1,
-  },
+  touchHeart: { fontSize: 11, marginHorizontal: 1 },
 
-  calendarSpark: {
-    position: "absolute",
-    bottom: 0,
-  },
+  calendarSpark: { position: "absolute", bottom: 0 },
 
   modalOverlay: {
     flex: 1,
-    backgroundColor:
-      "rgba(0,0,0,0.38)",
+    backgroundColor: "rgba(0,0,0,0.38)",
     justifyContent: "center",
     paddingHorizontal: 25,
   },
@@ -2832,11 +1261,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  modalTitle: {
-    fontSize: 21,
-    fontWeight: "800",
-    color: "#252525",
-  },
+  modalTitle: { fontSize: 21, fontWeight: "800", color: "#252525" },
 
   listItem: {
     minHeight: 55,
@@ -2848,33 +1273,16 @@ const styles = StyleSheet.create({
     marginVertical: 3,
   },
 
-  selectedListItem: {
-    backgroundColor: "#F5E7FF",
-  },
-
-  listText: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#333",
-  },
-
-  selectedListText: {
-    color: "#C13BE0",
-    fontWeight: "800",
-  },
+  listText: { fontSize: 17, fontWeight: "600", color: "#333" },
 
   photoPreviewOverlay: {
     flex: 1,
-    backgroundColor:
-      "rgba(0,0,0,0.92)",
+    backgroundColor: "rgba(0,0,0,0.92)",
     alignItems: "center",
     justifyContent: "center",
   },
 
-  photoPreviewImage: {
-    width: "92%",
-    height: "75%",
-  },
+  photoPreviewImage: { width: "92%", height: "75%" },
 
   photoPreviewClose: {
     position: "absolute",
@@ -2884,8 +1292,7 @@ const styles = StyleSheet.create({
     width: 45,
     height: 45,
     borderRadius: 23,
-    backgroundColor:
-      "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -2894,8 +1301,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor:
-      "rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(255,255,255,0.18)",
   },
 
   celebrationBox: {
@@ -2911,21 +1317,7 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
 
-  celebrationSpark: {
-    fontSize: 29,
-    marginBottom: 10,
-  },
-
-  celebrationTitle: {
-    fontSize: 30,
-    fontWeight: "900",
-    color: "#C13BE0",
-  },
-
-  celebrationText: {
-    fontSize: 13,
-    color: "#777",
-    marginTop: 6,
-    textAlign: "center",
-  },
+  celebrationSpark: { fontSize: 29, marginBottom: 10 },
+  celebrationTitle: { fontSize: 30, fontWeight: "900" },
+  celebrationText: { fontSize: 13, color: "#777", marginTop: 6, textAlign: "center" },
 });
